@@ -1,0 +1,7 @@
+source: .
+exclude  ["whisper.cpp/"]
+incremental: false
+highlighter: rouge
+kramdown:
+  math_engine: mathjax
+  syntax_highlighter: rouge
