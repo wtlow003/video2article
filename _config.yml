@@ -1,5 +1,5 @@
 source: .
-exclude  ["whisper.cpp/"]
+exclude: ["whisper.cpp/"]
 incremental: false
 highlighter: rouge
 kramdown:
