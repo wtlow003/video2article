@@ -166,3 +166,5 @@ cython_debug/
 /temp
 
 .DS_Store
+*.mp4
+*.wav
