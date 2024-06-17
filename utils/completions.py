@@ -39,7 +39,7 @@ def generate_transcript_segments(client: OpenAI, transcript: str) -> str:
     ]
 
     <Requirements for Each Segment>
-    - start: Indicates the starting time of the segment, formatted as "hours:minutes:DPseconds,milliseconds". It is crucial to format times accurately, perhaps utilizing Python’s datetime formatting tools like strftime() if necessary.
+    - start: Indicates the starting time of the segment, formatted as "hours:minutes:seconds,milliseconds". It is crucial to format times accurately, perhaps utilizing Python’s datetime formatting tools like strftime() if necessary.
     - end: Ends right before a new topic starts, ensuring a clear transition, formatted similarly to the start.
     - header: Provides a concise yet descriptive title of the main topic or theme discussed in this segment.
 
@@ -67,7 +67,7 @@ def generate_transcript_segments(client: OpenAI, transcript: str) -> str:
         messages=[
             {
                 "role": "system",
-                "content": "You are an expert in identifying shift in conversation and topic discussion from a video transcript.",
+                "content": "You are an expert in identifying shifts in conversation and topic discussion from a video transcript.",
             },
             {"role": "user", "content": PROMPT},
         ],
