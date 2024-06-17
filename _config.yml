@@ -1,5 +1,5 @@
 source: .
-exclude: ["whisper.cpp/"]
+exclude: ["whisper.cpp/", "README.md"]
 incremental: false
 highlighter: rouge
 kramdown:
