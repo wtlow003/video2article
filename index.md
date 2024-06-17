@@ -2,25 +2,28 @@
 
 Hi everyone. Today we are continuing our implementation of Makemore. In the last lecture, we implemented the bigram language model using both counts and a super simple neural network with a single linear layer.
 
-## Bigram Language Model
+## Overview of the Bigram Language Model
 
 This is the Jupyter Notebook that we built out last lecture. We approached this by looking at only the single previous character and predicting the distribution for the character that would go next in the sequence. We did this by taking counts and normalizing them into probabilities so that each row sums to one.
 
-<img src="./frames/unlabeled/frame_0001.png"/>
+<img src="./frames/unlabelled/frame_0001.png"/>
 
-This method works if you only have one character of previous context, and it's approachable. However, the problem with this model is that the predictions are not very good because it only takes one character of context. As a result, the model didn't produce very name-like outputs.
+Now, this is all well and good if you only have one character of previous context, and this works and is approachable. The problem with this model, of course, is that the predictions from this model are not very good because you only take one character of context, so the model didn't produce very name-like results.
 
-## Visualizing the Bigram Model
+## Visualizing the Bigram Probabilities
 
-Here is a visualization of the bigram model's output. Each cell represents the probability of transitioning from one character to another.
+Here is a visualization of the bigram probabilities. Each cell represents the probability of transitioning from one character to another.
 
-<img src="./frames/unlabeled/frame_0002.png"/>
+<img src="./frames/unlabelled/frame_0003.png"/>
 
 ## Code Implementation
 
-Below is a snippet of the code we used to generate names using the bigram model. We used a simple loop to sample characters based on the probabilities computed from the counts.
+Below is a snippet of the code we used to generate the bigram probabilities and sample from the model:
 
 ```python
+P.sum(1, keepdims=True)
+torch.Size([27])
+
 g = torch.Generator().manual_seed(2147483647)
 
 for i in range(5):
@@ -35,834 +38,547 @@ for i in range(5):
     print(''.join(out))
 ```
 
-This code generates names by starting with an initial character and sampling subsequent characters based on the bigram probabilities until it reaches the end of the sequence.
+This code generates sequences based on the bigram probabilities. However, as mentioned earlier, the sequences generated are not very name-like due to the limited context.
 
-While the bigram model is a good starting point, its limitation is evident in the quality of the generated names. In the next steps, we will explore more complex models that take into account more context to improve the quality of the generated names. Stay tuned!
+<img src="./frames/unlabelled/frame_0005.png"/>
 
-This concludes our discussion on the bigram language model for Makemore. In the next lecture, we will delve into more advanced models to enhance our name generation capabilities. ## Context Explosion in Sequence Prediction
+In the next steps, we will look into improving this model by incorporating more context and using more sophisticated neural network architectures. Stay tuned!
+## Understanding Context in Sequence Prediction
 
-When predicting the next character in a sequence, taking more context into account can lead to exponential growth in the size of the context table. This phenomenon is illustrated in the following discussion.
+The problem with using a simple lookup table for predicting the next character in a sequence is that the table size grows exponentially with the length of the context. If we only take a single character at a time, there are 27 possibilities for the context. However, if we take two characters in the past and try to predict the third one, the number of rows in this matrix becomes 27 times 27, resulting in 729 possibilities for what could have come in the context.
 
-### Single Character Context
+<img src="./frames/unlabelled/frame_0007.png"/>
 
-If we only consider a single character at a time, there are 27 possible contexts (assuming a 27-character alphabet).
+If we take three characters as the context, we suddenly have 20,000 possibilities of context. This results in way too many rows in the matrix, leading to very few counts for each possibility. The whole approach becomes impractical and doesn't work very well.
 
-### Two-Character Context
+## Moving to a Multilayer Perceptron Model
 
-When we extend the context to two characters, the number of possible contexts increases dramatically. Specifically, the number of rows in the context matrix becomes:
+To address this issue, we will implement a multilayer perceptron (MLP) model to predict the next character in a sequence. This modeling approach allows us to take more context into account without the exponential growth in table size.
 
-\[ 27 \times 27 = 729 \]
+Here is a snippet of the code used to implement the MLP model:
 
-<img src="./frames/unlabeled/frame_0006.png"/>
+```python
+P = P / P.sum(1, keepdims=True)
+g = torch.Generator().manual_seed(2147483647)
 
-### Three-Character Context
+for i in range(5):
+    out = []
+    ix = 0
+    while True:
+        p = P[ix]
+        ix = torch.multinomial(p, num_samples=1, replacement=True, generator=g).item()
+        out.append(itos[ix])
+        if ix == 0:
+            break
+    print(''.join(out))
+```
 
-If we further extend the context to three characters, the number of possible contexts explodes to:
+This code snippet demonstrates how we normalize the probabilities and use a random generator to predict the next character in the sequence.
 
-\[ 27 \times 27 \times 27 = 19,683 \]
+## Visualizing the Context Matrix
 
-<img src="./frames/unlabeled/frame_0007.png"/>
+To better understand the context matrix, we can visualize it. The following image shows a heatmap of the context matrix, where each cell represents the count of a specific context combination.
 
-### Exponential Growth
+<img src="./frames/unlabelled/frame_0009.png"/>
 
-This exponential growth continues as we increase the length of the context. For example, with four characters, the number of possible contexts would be:
+In this heatmap, darker cells indicate higher counts, showing which context combinations are more common.
 
-\[ 27^4 = 531,441 \]
+By moving from a simple lookup table to a multilayer perceptron model, we can effectively handle larger contexts without the exponential growth in table size. This approach allows us to predict the next character in a sequence more accurately and efficiently.
+# A Neural Probabilistic Language Model
 
-This rapid increase in the number of possible contexts makes it impractical to use longer contexts for sequence prediction, as the context table becomes too large to manage effectively. The number of counts for each possibility becomes too sparse, leading to unreliable predictions.
+## Introduction
 
-In summary, while considering more context can theoretically improve sequence prediction, the exponential growth in the size of the context table poses significant challenges. This issue highlights the need for more efficient methods to handle longer contexts in sequence prediction tasks. # Implementing a Multilayer Perceptron for Character Prediction
+In this blog post, we will delve into the influential paper by Bengio et al. (2003) titled "A Neural Probabilistic Language Model." This paper is often cited for its significant contributions to the field of language modeling using neural networks. Although it is not the first paper to propose the use of multilayer perceptrons or neural networks to predict the next character or token in a sequence, it has been highly influential and is frequently referenced in the literature. The paper spans 19 pages, and while we won't cover every detail, I encourage you to read it for a comprehensive understanding. It is well-written, engaging, and packed with interesting ideas.
 
-Today, we're going to implement a multilayer perceptron (MLP) model to predict the next character in a sequence. This modeling approach follows the paper by Bengio et al. (2003). Let's dive into the details of this influential paper and how we can adapt its ideas for our character-level language model.
+## Problem Description
 
-## The Bengio et al. (2003) Paper
+The introduction of the paper describes the problem of statistical language modeling, which involves learning the joint probability function of sequences of words in a language. This task is challenging due to the "curse of dimensionality," where the number of possible word sequences is vast, making it difficult for models to generalize from the training data.
 
-The paper by Bengio et al. is not the first to propose the use of multilayer perceptrons or neural networks for predicting the next character or token in a sequence, but it has been highly influential. It is often cited as a foundational work in this area.
+## Proposed Model
 
-<img src="./frames/unlabeled/frame_0012.png"/>
+To address this problem, the authors propose a model that learns a distributed representation for words. This approach allows each training sentence to inform the model about an exponential number of semantically neighboring sentences. The model learns simultaneously:
 
-The paper is 19 pages long, and while we won't cover every detail here, I encourage you to read it. It's very readable and contains many interesting ideas. The introduction describes the same problem we're tackling: predicting the next character in a sequence.
+1. A distributed representation for each word.
+2. The probability function for word sequences, expressed in terms of these representations.
 
-## Model Overview
+Generalization is achieved because a sequence of words that has never been seen before gets high probability if it is made of words that are similar (in the sense of having a nearby representation) to words forming an already seen sentence.
 
-In the paper, the authors propose a model to address the problem of predicting the next word in a sequence. Although they work at the word level with a vocabulary of 17,000 possible words, we will adapt their approach to work at the character level.
+<img src="./frames/unlabelled/frame_0013.png"/>
 
-### Fighting the Curse of Dimensionality
+## Fighting the Curse of Dimensionality with Distributed Representations
 
-One of the key challenges in language modeling is the curse of dimensionality. The authors propose fighting this by learning a distributed representation for words. This allows each training sentence to inform the model about an exponential number of semantically neighboring sentences.
-
-<img src="./frames/unlabeled/frame_0013.png"/>
-
-### Key Steps in the Proposed Approach
-
-1. **Associate each word with a distributed word feature vector**: This is a real-valued vector in an m-dimensional space.
-2. **Express the joint probability function of word sequences**: This is done using the feature vectors of these words in the sequence.
-3. **Learn the word feature vectors and the parameters of the probability function simultaneously**.
-
-<img src="./frames/unlabeled/frame_0014.png"/>
-
-The feature vector represents different aspects of the word, and each word is associated with a point in a vector space. The number of features (e.g., m=30, 60, or 100) is much smaller than the size of the vocabulary (e.g., 17,000). The probability function is expressed as a product of the conditional probabilities of the next word given the previous ones.
-
-By using a multilayer neural network to predict the next word given the previous ones, the model can maximize the log-likelihood of the training data or a regularized criterion.
-
-### Why Does It Work?
-
-The approach works because it allows the model to generalize from the training data. For example, if the model knows that "dog" and "cat" play similar roles in sentences, it can use this information to predict the next word more accurately.
-
-In summary, the Bengio et al. (2003) paper provides a robust framework for building language models. By adapting their approach to work at the character level, we can create a powerful model for predicting the next character in a sequence. # Fighting the Curse of Dimensionality with Distributed Representations
-
-## Overview
-
-In a nutshell, the idea of the proposed approach can be summarized as follows:
+The idea of the proposed approach can be summarized as follows:
 
 1. **Associate with each word in the vocabulary a distributed word feature vector** (a real-valued vector in \( \mathbb{R}^m \)).
 2. **Express the joint probability function of word sequences** in terms of the feature vectors of these words in the sequence.
 3. **Learn simultaneously the word feature vectors and the parameters of that probability function**.
 
-<img src="./frames/unlabeled/frame_0018.png"/>
+<img src="./frames/unlabelled/frame_0016.png"/>
+
+The feature vector represents different aspects of the word, with each word associated with a point in a vector space. The number of features (e.g., \( m = 30, 60, \) or \( 100 \) in the experiments) is much smaller than the size of the vocabulary (e.g., 17,000). The probability function is expressed as a product of conditional probabilities of the next word given the previous ones, using a multilayer neural network to predict the next word given the previous ones.
+
+This function has parameters that can be iteratively tuned to maximize the log-likelihood of the training data or a regularized criterion, such as adding a weight decay penalty. The feature vectors associated with each word are learned, but they could be initialized using prior knowledge of semantic features.
+
+<img src="./frames/unlabelled/frame_0017.png"/>
+
+The proposed approach by Bengio et al. (2003) significantly improves on state-of-the-art n-gram models and allows for the utilization of longer contexts. By learning distributed representations for words, the model can generalize better and handle the curse of dimensionality more effectively. This paper has laid the groundwork for many subsequent advancements in neural language modeling.
+# Fighting the Curse of Dimensionality with Distributed Representations
+
+## Introduction
+
+In this section, we discuss the approach to fighting the curse of dimensionality using distributed representations. The idea can be summarized as follows:
+1. **Associate with each word in the vocabulary a distributed word feature vector** (a real-valued vector in \( \mathbb{R}^m \)).
+2. **Express the joint probability function of word sequences** in terms of the feature vectors of these words in the sequence.
+3. **Learn simultaneously the word feature vectors and the parameters of that probability function**.
+
+<img src="./frames/unlabelled/frame_0019.png"/>
 
 ## Feature Vector Representation
 
-The feature vector represents different aspects of the word: each word is associated with a point in a vector space. The number of features (e.g., \( m = 30, 60 \) or 100 in the experiments) is much smaller than the size of the vocabulary (e.g., 17,000). The probability function is expressed as a product of conditional probabilities of the next word given the previous ones (e.g., using a multi-layer neural network to predict the next word given the previous ones in the experiments). This function has parameters that can be iteratively tuned in order to maximize the log-likelihood of the training data or a regularized criterion, e.g., by adding a weight decay penalty. The feature vectors associated with each word are learned, but they could be initialized using prior knowledge of semantic features.
+The feature vector represents different aspects of the word. Each word is associated with a point in a vector space. The number of features (e.g., \( m = 30, 60 \) or 100 in the experiments) is much smaller than the size of the vocabulary (e.g., 17,000). The probability function is expressed as a product of conditional probabilities of the next word given the previous ones (e.g., using a multi-layer neural network to predict the next word given the previous ones in the experiments). This function has parameters that can be iteratively tuned to maximize the log-likelihood of the training data or a regularized criterion, e.g., by adding a weight decay penalty. The feature vectors associated with each word are learned, but they could be initialized using prior knowledge of semantic features.
 
 ## Why Does It Work?
 
-In the previous example, if we knew that "dog" and "cat" played similar roles (semantically and syntactically), and similarly for (the, a), (bedroom, room), (is, was), etc., we could use this information to initialize the word vectors. During training, these vectors would be fine-tuned to better capture the relationships between words.
+In the previous example, if we knew that dog and cat played similar roles (semantically and syntactically), and similarly for (the, a), (bedroom, room), (is, was), (running, walking), we could naturally generalize (i.e., transfer probability mass) from:
+- The cat is walking in the bedroom
+- A dog was running in a room
+- The cat is running in a room
+- A dog is walking in a bedroom
+- The dog was walking in the room
 
-### Example
+<img src="./frames/unlabelled/frame_0025.png"/>
 
-Let's take every one of these 17,000 words and associate each word with a 30-dimensional feature vector. So, every word is now embedded into a 30-dimensional space. We have 17,000 points or vectors in a 30-dimensional space, which might seem very crowded. Initially, these words are randomly spread out, but during training, the embeddings are tuned using backpropagation. Over time, words with similar meanings or synonyms might end up in similar parts of the space, while words with different meanings will be farther apart.
+## Embedding Space and Generalization
 
-<img src="./frames/unlabeled/frame_0019.png"/>
+Words are embedded into a 30-dimensional space. We have 17,000 points or vectors in this 30-dimensional space, which is very crowded. Initially, these words are spread out randomly, but during training, the embeddings are tuned using backpropagation. Over time, words with similar meanings or synonyms end up in similar parts of the space, while words with different meanings are positioned elsewhere.
 
-### Training Process
+The modeling approach uses a multi-layer neural network to predict the next word given the previous words, maximizing the log-likelihood of the training data. This approach allows for generalization even when the exact phrase has not been encountered in the training data. For example, if the phrase "a dog was running in a" has never occurred in the training data, the model can still predict the next word by leveraging similar phrases it has seen, such as "the dog was running in a."
 
-During the course of training, these points or vectors move around in the space. For example, words that have very similar meanings or are synonyms might end up in very similar parts of the space. Conversely, words that mean very different things will be positioned far apart.
+## Example of Generalization
 
-<img src="./frames/unlabeled/frame_0020.png"/>
+Suppose you are trying to predict "a dog was running in a blank." If this exact phrase has never occurred in the training data, the model can still make a prediction by recognizing that "a" and "the" are often interchangeable. The embeddings for "a" and "the" are placed near each other in the space, allowing the model to transfer knowledge and generalize. Similarly, the network can recognize that "cats" and "dogs" are animals that co-occur in similar contexts, enabling it to generalize even if it hasn't seen the exact phrase or action.
 
-### Regularization
+<img src="./frames/unlabelled/frame_0031.png"/>
 
-To prevent overfitting, regularization techniques such as weight decay are applied. This penalizes the squared norm of the parameters, ensuring that the model generalizes well to unseen data.
+By leveraging the embedding space, the model can transfer knowledge and make accurate predictions even in out-of-distribution scenarios. This approach enhances the model's ability to generalize and handle variations in language effectively.
+# Neural Network Architecture for Word Prediction
 
-### Contextual Understanding
+In this section, we will discuss the architecture of a neural network designed to predict the next word in a sequence based on the previous words. The diagram below illustrates the structure of this neural network.
 
-N-grams with \( n \) up to 5 (i.e., 4 words of context) have been reported, though due to data scarcity, most predictions are made with a much shorter context.
-
-## Conclusion
-
-By embedding words into a high-dimensional space and fine-tuning these embeddings through training, we can capture semantic and syntactic relationships between words. This approach helps in dealing with the curse of dimensionality and improves the performance of language models. # Fighting the Curse of Dimensionality with Distributed Representations
-
-## Modeling Approach
-
-The modeling approach discussed here is identical to the one used in the referenced paper. The method involves using a multi-layer neural network to predict the next word given the previous words. The training process maximizes the log likelihood of the training data.
-
-## Example of Intuition
-
-To illustrate why this approach works, consider the following example:
-
-Suppose you are trying to predict the phrase "a dog was running in a blank." If the exact phrase "a dog was running in a" has never occurred in the training data, the model might struggle to predict the next word. This situation is referred to as being "out of distribution."
-
-However, this approach allows the model to generalize. Even if the exact phrase hasn't been seen, the model might have encountered similar phrases like "the dog was running in a blank." The neural network can learn that "a" and "the" are frequently interchangeable. By placing their embeddings near each other in the vector space, the model can transfer knowledge and generalize.
-
-Similarly, the network can understand that "cats" and "dogs" are animals that often appear in similar contexts. Even if the model hasn't seen the exact phrase or action (e.g., "walking" or "running"), it can generalize to novel scenarios through the embedding space.
-
-## Neural Network Diagram
-
-Let's examine the diagram of the neural network used in this approach. In this example, the network takes three previous words and tries to predict the fourth word in a sequence.
-
-<img src="./frames/unlabeled/frame_0024.png"/>
-
-### Vocabulary and Lookup Table
-
-The vocabulary consists of 17,000 possible words, so each word is represented by an integer between 0 and 16,999. The lookup table, referred to as matrix C, is a 17,000 by 30 matrix. This matrix acts as a lookup table where each index corresponds to a row in the embedding matrix, converting each word index into a 30-dimensional vector.
+<img src="./frames/unlabelled/frame_0035.png"/>
 
 ### Input Layer
 
-The input layer consists of 30 neurons for each of the three words, making a total of 90 neurons. The matrix C is shared across all words, meaning that the same matrix is used for indexing every word.
+In this example, we are using three previous words to predict the fourth word in a sequence. Given a vocabulary of 17,000 possible words, each word is represented by an index ranging from 0 to 16,999. There is a lookup table, denoted as **C**, which is a matrix of size 17,000 by 30. This lookup table acts as an embedding matrix, converting each word index into a 30-dimensional vector. Therefore, the input layer consists of 30 neurons for each of the three words, making a total of 90 neurons.
 
-<img src="./frames/unlabeled/frame_0035.png"/>
+### Hidden Layer
 
-### Embedding and Generalization
+The hidden layer's size is a hyperparameter, meaning it is a design choice that can vary. For instance, if the hidden layer has 100 neurons, each of these neurons is fully connected to the 90 input neurons. This layer is followed by a tanh non-linearity.
 
-The embedding space allows the model to generalize by placing similar words and phrases near each other. This proximity in the vector space enables the transfer of knowledge and helps the model handle out-of-distribution scenarios effectively.
+### Output Layer
 
-By leveraging distributed representations and embedding spaces, the neural network can predict words and phrases it hasn't explicitly seen during training, demonstrating the power of this approach in natural language processing tasks. ## Neural Network Architecture and Implementation
+The output layer consists of 17,000 neurons, corresponding to the 17,000 possible next words. Each neuron in the output layer is fully connected to all neurons in the hidden layer. This layer is computationally expensive due to the large number of parameters.
 
-In this section, we will discuss the architecture of a neural network and its implementation. The size of the hidden neural layer in this neural network is a hyperparameter. We use the term "hyperparameter" to refer to design choices that are up to the designer of the neural network. This size can be as large or as small as desired. For example, the size could be set to 100 neurons. We will explore multiple choices for the size of this hidden layer and evaluate their performance.
+### Softmax Layer
 
-### Neural Network Architecture
+On top of the output layer, we have a softmax layer. Each logit from the output layer is exponentiated and normalized to sum to one, resulting in a probability distribution for the next word in the sequence.
 
-Consider a hidden layer with 100 neurons. All of these neurons are fully connected to the 90 numbers that represent three words. This forms a fully connected layer. Following this, there is a tanh non-linearity and an output layer. Given that there are 17,000 possible words that could follow, this output layer has 17,000 neurons, each fully connected to all neurons in the hidden layer. This results in a large number of parameters, making this layer computationally expensive.
+### Training
 
-<img src="./frames/unlabeled/frame_0042.png"/>
-
-There are 17,000 logits in this layer. On top of this, we have a softmax layer, which we have seen in previous discussions. Each of these logits is exponentiated, and then everything is normalized to sum to one, resulting in a probability distribution for the next word in the sequence.
-
-During training, we have the label, which is the identity of the next word in the sequence. This word or its index is used to extract the probability of that word. We then maximize the probability of that word with respect to the parameters of the neural network. The parameters include the weights and biases of the output layer, the weights and biases of the hidden layer, and the embedding lookup table \( C \). All of these parameters are optimized using backpropagation.
-
-The dashed arrows in the diagram represent a variation of the neural network that we will not explore in this discussion.
+During training, the actual next word in the sequence is known. The index of this word is used to extract the corresponding probability from the softmax layer. The goal is to maximize this probability with respect to the neural network's parameters, which include the weights and biases of the output and hidden layers, as well as the embedding lookup table **C**. This optimization is performed using backpropagation.
 
 ### Implementation
 
-Let's implement this setup. We start by creating a new notebook for this lecture. We import PyTorch and matplotlib to create figures. Then, we read all the names into a list of words, as we did before.
+Now, let's move on to the implementation. We will start by creating a new notebook for this lecture.
 
-<img src="./frames/unlabeled/frame_0054.png"/>
+This concludes the explanation of the neural network architecture for word prediction. The next steps involve coding and implementing this architecture in a practical setting.
+## Building a Character-Level Language Model with PyTorch
 
-```python
-import torch
-import torch.nn.functional as F
-import matplotlib.pyplot as plt  # for making figures
-%matplotlib inline
+In this section, we will walk through the process of building a character-level language model using PyTorch. We will start by reading in a dataset of names, building a vocabulary, and then creating a dataset suitable for training a neural network.
 
-# Read in all the words
-words = open('names.txt', 'r').read().splitlines()
-words[:8]
+### Reading the Dataset
 
-# Output
-['emma', 'olivia', 'ava', 'isabella', 'sophia', 'charlotte', 'mia', 'amelia']
-
-# Length of words
-len(words)
-
-# Output
-32033
-
-# Build the vocabulary of characters and mappings to/from integers
-chars = sorted(list(set(''.join(words))))
-stoi = {s:i for i, s in enumerate(chars)}
-itos = {i:s for s, i in stoi.items()}
-print(itos)
-
-# Output
-{0: ' ', 1: 'a', 2: 'b', 3: 'c', 4: 'd', 5: 'e', 6: 'f', 7: 'g', 8: 'h', 9: 'i', 10: 'j', 11: 'k', 12: 'l', 13: 'm', 14: 'n', 15: 'o', 16: 'p', 17: 'q', 18: 'r', 19: 's', 20: 't', 21: 'u', 22: 'v', 23: 'w', 24: 'x', 25: 'y', 26: 'z'}
-```
-
-In this code snippet, we import the necessary libraries and read the names from a text file into a list. We then build a vocabulary of characters and create mappings to and from integers. This setup is essential for processing the text data and feeding it into the neural network. ## Building a Dataset for a Neural Network
-
-In this section, we will discuss how to build a dataset for a neural network. We will start by reading in the data, building the vocabulary, and then creating the dataset.
-
-### Reading the Data and Building the Vocabulary
-
-First, we read in all the words from a text file and build the vocabulary of characters. We also create mappings from characters to integers and vice versa.
+First, we read all the names into a list of words. Here, we are showing the first eight names, but keep in mind that we have a total of 32,033 names in the dataset.
 
 ```python
-import torch
-import torch.nn.functional as F
-import matplotlib.pyplot as plt # for making figures
-%matplotlib inline
-
-# Read in all the words
 words = open('names.txt', 'r').read().splitlines()
 words[:8]
 ```
 
 Output:
-```python
+```
 ['emma', 'olivia', 'ava', 'isabella', 'sophia', 'charlotte', 'mia', 'amelia']
 ```
 
-```python
-len(words)
-```
+<img src="./frames/unlabelled/frame_0056.png"/>
 
-Output:
-```python
-32033
-```
+### Building the Vocabulary
+
+Next, we build the vocabulary of characters and create mappings from characters to integers and vice versa.
 
 ```python
-# Build the vocabulary of characters and mappings to/from integers
 chars = sorted(list(set(''.join(words))))
-stoi = {s: i + 1 for i, s in enumerate(chars)}
+stoi = {s: i+1 for i, s in enumerate(chars)}
 stoi['.'] = 0
 itos = {i: s for s, i in stoi.items()}
 print(itos)
 ```
 
 Output:
-```python
+```
 {1: 'a', 2: 'b', 3: 'c', 4: 'd', 5: 'e', 6: 'f', 7: 'g', 8: 'h', 9: 'i', 10: 'j', 11: 'k', 12: 'l', 13: 'm', 14: 'n', 15: 'o', 16: 'p', 17: 'q', 18: 'r', 19: 's', 20: 't', 21: 'u', 22: 'v', 23: 'w', 24: 'x', 25: 'y', 26: 'z', 0: '.'}
 ```
 
-<img src="./frames/unlabeled/frame_0055.png"/>
+### Compiling the Dataset
 
-### Creating the Dataset
-
-Next, we compile the dataset for the neural network. This involves defining a block size, which is the context length of how many characters we take to predict the next one. In this example, we take three characters to predict the fourth one.
+The first step in preparing the dataset for the neural network is to define the block size, which is the context length of how many characters we take to predict the next one. In this example, we use a block size of three, meaning we take three characters to predict the fourth one.
 
 ```python
-# Build the dataset
-block_size = 3 # context length: how many characters do we take to predict the next one?
-X, Y = [], []
-for w in words[:5]:
-    print(w)
+block_size = 3
+x, y = [], []
+for word in words[:5]:  # Using the first five words for efficiency
     context = [0] * block_size
-    for ch in w + '.':
+    for ch in word + '.':
         ix = stoi[ch]
-        X.append(context)
-        Y.append(ix)
-        print(''.join(itos[i] for i in context), '--->', itos[ix])
-        context = context[1:] + [ix] # crop and append
+        x.append(context)
+        y.append(ix)
+        context = context[1:] + [ix]
+```
 
-X = torch.tensor(X)
-Y = torch.tensor(Y)
+### Generating Examples
+
+Here, we print the word "emma" and show the examples generated from it. For instance, given the context of `...`, the first character in the sequence is `e`. The label for this context is `m`.
+
+```python
+word = 'emma'
+context = [0] * block_size
+for ch in word + '.':
+    ix = stoi[ch]
+    print(''.join(itos[i] for i in context), '->', itos[ix])
+    context = context[1:] + [ix]
 ```
 
 Output:
-```python
-emma
-... ---> e
-..e ---> m
-.em ---> m
-emm ---> a
-mma ---> .
-olivia
-... ---> o
-..o ---> l
-.ol ---> i
-oli ---> v
-liv ---> i
-ivi ---> a
-via ---> .
-ava
-... ---> a
-..a ---> v
-.av ---> a
-ava ---> .
-isabella
-... ---> i
-..i ---> s
-.is ---> a
-isa ---> b
-sab ---> e
-abe ---> l
-bel ---> l
-ell ---> a
-lla ---> .
+```
+... -> e
+..e -> m
+.em -> m
+emm -> a
+mma -> .
 ```
 
-<img src="./frames/unlabeled/frame_0056.png"/>
+### Rolling Window of Context
 
-In the code above, we start with a padded context of zero tokens. We then iterate over all the characters in each word, building out the array `Y` for the current character and the array `X` which stores the current running context. This process is repeated for the first five words for efficiency during development. Later, we will use the entire training set.
-
-By following these steps, we can effectively create a dataset that can be used to train a neural network to predict the next character in a sequence based on the given context. # Building a Character-Level Language Model with PyTorch
-
-In this post, we will walk through the process of building a character-level language model using PyTorch. We will start by creating a dataset, then build an embedding lookup table, and finally, implement a neural network to predict the next character in a sequence.
-
-## Creating the Dataset
-
-We begin by creating a dataset from a list of words. The dataset consists of input sequences of characters and their corresponding target characters. The context length, or block size, determines how many characters we use to predict the next one.
+We use a rolling window of context to build the dataset. The context is padded with zero tokens initially, and then we iterate over all characters to build the arrays `x` and `y`.
 
 ```python
-block_size = 3  # context length: how many characters do we take to predict the next one?
-X, Y = [], []
-for w in words[:5]:
-    print(w)
+block_size = 3
+x, y = [], []
+for word in words[:5]:
     context = [0] * block_size
-    for ch in w + '.':
+    for ch in word + '.':
         ix = stoi[ch]
-        X.append(context)
-        Y.append(ix)
-        print(''.join(itos[i] for i in context), '--->', itos[ix])
-        context = context[1:] + [ix]  # crop and append
-
-X = torch.tensor(X)
-Y = torch.tensor(Y)
+        x.append(context)
+        y.append(ix)
+        context = context[1:] + [ix]
 ```
 
-Here, we use a context length of 3. For each word, we create input sequences of three characters and their corresponding target character. The dataset looks like this:
+### Adjusting Block Size
 
-<img src="./frames/unlabeled/frame_0067.png"/>
-
-## Adjusting the Block Size
-
-We can change the block size to predict the next character based on a different number of preceding characters. For example, setting the block size to 5:
+We can change the block size to predict different lengths of sequences. For example, setting the block size to four means predicting the fifth character given the previous four.
 
 ```python
-block_size = 5  # context length: how many characters do we take to predict the next one?
-X, Y = [], []
-for w in words[:5]:
-    print(w)
-    context = [0] * block_size
-    for ch in w + '.':
-        ix = stoi[ch]
-        X.append(context)
-        Y.append(ix)
-        print(''.join(itos[i] for i in context), '--->', itos[ix])
-        context = context[1:] + [ix]  # crop and append
-
-X = torch.tensor(X)
-Y = torch.tensor(Y)
+block_size = 4
+# Similar code to generate x and y with the new block size
 ```
 
-With a block size of 5, the dataset is updated accordingly:
+### Final Dataset
 
-<img src="./frames/unlabeled/frame_0069.png"/>
-
-## Building the Embedding Lookup Table
-
-Next, we build an embedding lookup table. We have 27 possible characters, and we will embed them in a lower-dimensional space. For simplicity, we start with a two-dimensional space.
+From the first five words, we have created a dataset of 32 examples. Each input to the neural network is three integers long.
 
 ```python
-C = torch.randn((27, 2))
+print(f'Dataset size: {len(x)} examples')
+print(f'First example: {x[0]} -> {y[0]}')
 ```
 
-This creates a matrix `C` with 27 rows and 2 columns, where each row represents a character embedding.
+Output:
+```
+Dataset size: 32 examples
+First example: [0, 0, 0] -> 5
+```
+
+In this way, we have prepared a dataset suitable for training a character-level language model using PyTorch.
+# Building a Neural Network for Character Embeddings
+
+In this section, we will discuss how to build a neural network that takes input characters and predicts corresponding labels. We will start by creating an embedding lookup table and then explore how to use it for embedding individual characters.
+
+## Embedding Lookup Table
+
+First, let's build the embedding lookup table `C`. We have 27 possible characters, and we will embed them in a lower-dimensional space. In the referenced paper, they embed 17,000 words into a 30-dimensional space. For our case, we have only 27 possible characters, so we will start with a 2-dimensional space.
+
+This lookup table will be initialized with random numbers. It will have 27 rows and 2 columns, meaning each of the 27 characters will have a 2-dimensional embedding. This is our matrix `C` of embeddings, initialized randomly.
 
 ## Embedding a Single Integer
 
-To understand how embedding works, let's embed a single integer, say 5. We can index into the fifth row of `C` to get the embedding vector.
+Before embedding all the integers inside the input `x` using this lookup table `C`, let's embed a single integer, say 5, to understand how this works.
 
-```python
-C[5]
-```
+One way to do this is to index into row 5 of `C`, which gives us a vector, the fifth row of `C`. This is one way to do it. Another way, as presented in a previous lecture, involves using one-hot encoding.
 
-Alternatively, we can use one-hot encoding to achieve the same result. First, we create a one-hot encoded vector for the integer 5.
+### One-Hot Encoding
 
-```python
-F.one_hot(torch.tensor(5), num_classes=27)
-```
+To one-hot encode the integer 5, we need to specify that the number of classes is 27. This results in a 27-dimensional vector of all zeros, except the fifth bit is turned on.
 
-This produces a 27-dimensional vector with a 1 at the fifth position. We can then multiply this one-hot vector by `C` to get the embedding.
+However, this approach has a caveat. The input must be a tensor, not an integer. This is straightforward to fix. We get a one-hot vector where the fifth dimension is one, and the shape of this vector is 27.
 
-```python
-F.one_hot(torch.tensor(5), num_classes=27) @ C
-```
+### Matrix Multiplication
 
-This approach is equivalent to indexing into the embedding matrix.
+If we take this one-hot vector and multiply it by `C`, we encounter an error because the one-hot vector is of type `long` (a 64-bit integer), while `C` is a float tensor. PyTorch doesn't know how to multiply an integer with a float. To fix this, we explicitly cast the one-hot vector to a float.
 
-<img src="./frames/unlabeled/frame_0079.png"/>
+The output is identical to indexing into `C` directly. This is because the matrix multiplication masks out everything in `C` except for the fifth row, which is plucked out. This tells us that embedding the integer can be interpreted as indexing into the lookup table `C`.
 
-In this post, we have created a dataset for a character-level language model, built an embedding lookup table, and demonstrated how to embed individual characters using both direct indexing and one-hot encoding. This forms the foundation for building a neural network to predict the next character in a sequence. # Building an MLP with PyTorch
+## Neural Network Interpretation
 
-In this post, we will walk through the process of building a Multi-Layer Perceptron (MLP) using PyTorch. We will cover embedding integers, handling tensors, and constructing hidden layers. Let's dive in!
+We can also think of this embedding process as the first layer of a larger neural network. This layer has neurons with no nonlinearity (no `tanh`), just linear neurons. The weight matrix of this layer is `C`. We encode integers into one-hot vectors and feed them into the neural network.
 
-## Handling Data Types in PyTorch
+<img src="./frames/unlabelled/frame_0073.png"/>
 
-When working with PyTorch, it's important to ensure that the data types of tensors are compatible for operations. For instance, PyTorch does not allow multiplication of an integer tensor with a float tensor directly. We need to explicitly cast the integer tensor to a float tensor.
+In summary, we have built an embedding lookup table and explored how to embed individual characters using both direct indexing and one-hot encoding. This forms the basis for building a neural network that can predict labels from input characters.
+# Embedding and Indexing in PyTorch
 
-```python
-F.one_hot(torch.tensor(5), num_classes=27).float() @ C
-```
-
-<img src="./frames/unlabeled/frame_0089.png"/>
-
-In the example above, we cast the one-hot encoded tensor to a float before performing matrix multiplication. This ensures compatibility and avoids runtime errors.
+In this section, we will explore how to efficiently embed and index integers using PyTorch. This is crucial for tasks such as natural language processing, where words or characters are often represented as integers.
 
 ## Embedding Integers
 
-Embedding integers is a common task in neural networks, especially when dealing with categorical data. In PyTorch, we can use indexing to retrieve embeddings from a lookup table.
+Embedding a single integer, like 5, is straightforward. We can simply ask PyTorch to retrieve the fifth row of a matrix `C`. However, embedding a batch of integers, such as a 32x3 array, requires more advanced indexing techniques.
+
+### Indexing with Lists and Tensors
+
+PyTorch's indexing capabilities are quite flexible. For example, we can index using lists or tensors of integers. This allows us to retrieve multiple rows simultaneously.
 
 ```python
-C = torch.randn(27, 2)
-C[5]
+C = torch.randn((27, 2))
+C[5]  # Retrieve the 5th row
 ```
 
-<img src="./frames/unlabeled/frame_0091.png"/>
-
-The code above retrieves the embedding for the integer `5` from the matrix `C`. This is equivalent to using a one-hot encoded vector to index into `C`.
-
-## Indexing with Lists and Tensors
-
-PyTorch's indexing capabilities are quite flexible. We can index using lists or tensors of integers to retrieve multiple rows simultaneously.
-
-```python
-C[torch.tensor([5, 6, 7])]
-```
-
-<img src="./frames/unlabeled/frame_0099.png"/>
-
-In the example above, we retrieve the embeddings for the integers `5`, `6`, and `7` using a tensor of integers. This can also be done with lists.
-
-## Multi-Dimensional Indexing
-
-We can also index with multi-dimensional tensors. This allows us to retrieve embeddings for a batch of data efficiently.
+To embed all integers in a 32x3 array `X`, we can use tensor indexing:
 
 ```python
 X = torch.randint(0, 27, (32, 3))
-C[X]
+emb = C[X]
 ```
 
-<img src="./frames/unlabeled/frame_0105.png"/>
+This retrieves the embedding vectors for all integers in `X`.
 
-Here, `X` is a 32x3 tensor of integers, and `C[X]` retrieves the corresponding embeddings. The shape of the resulting tensor is `(32, 3, 2)`, where `2` is the embedding dimension.
+<img src="./frames/unlabelled/frame_0097.png"/>
 
 ## Constructing the Hidden Layer
 
-Next, we construct the hidden layer of our MLP. We initialize the weights and biases randomly. The number of inputs to this layer is determined by the embedding dimensions and the number of embeddings.
+Next, we construct a hidden layer. We initialize the weights `W1` and biases `b1` randomly. The number of inputs to this layer is determined by the embedding dimensions and the number of embeddings.
 
 ```python
-W1 = torch.randn((3 * 2, 100))  # 3 embeddings, each of dimension 2, and 100 neurons
+W1 = torch.randn((6, 100))
 b1 = torch.randn(100)
 ```
 
-<img src="./frames/unlabeled/frame_0113.png"/>
-
-In this example, we have 3 embeddings, each of dimension 2, resulting in 6 inputs to the hidden layer. We choose to have 100 neurons in this layer.
-
-By following these steps, we can build a robust MLP using PyTorch, capable of handling embeddings and efficiently processing batches of data. ## Working with Embeddings in PyTorch
-
-In this section, we will discuss how to handle embeddings in PyTorch, particularly focusing on transforming tensor shapes to perform matrix multiplications.
-
-### Problem Statement
-
-We have embeddings stacked up in the dimensions of an input tensor. The current shape of the tensor is `32 x 3 x 2`, and we need to perform a matrix multiplication with a tensor of shape `6 x 100`. This operation will not work directly due to the shape mismatch. Therefore, we need to transform the tensor from `32 x 3 x 2` to `32 x 6` to perform the multiplication.
-
-### Understanding the Tensor Shapes
-
-The tensor `emb` has the shape `32 x 3 x 2`. Here is a snapshot of the tensor shape:
-
-<img src="./frames/unlabeled/frame_0116.png"/>
-
-To perform the matrix multiplication, we need to concatenate the embeddings along the correct dimension.
-
-### Using PyTorch Documentation
-
-PyTorch is a comprehensive library with numerous functions to manipulate tensors. By exploring the documentation, we can find various ways to achieve our goal. One useful function is `torch.cat`, which concatenates a sequence of tensors along a specified dimension.
+However, directly multiplying the embeddings with the weights will not work due to shape mismatches. We need to concatenate the embeddings into a suitable shape.
 
 ### Concatenating Tensors
 
-To concatenate the tensors, we need to retrieve the three parts of the embeddings and concatenate them. Here’s how we can do it:
-
-1. **Retrieve the Parts**: We need to grab the embeddings for each part separately.
-2. **Concatenate the Parts**: Use `torch.cat` to concatenate these parts along the desired dimension.
-
-Here’s the code to achieve this:
+To transform a 32x3x2 tensor into a 32x6 tensor, we can use the `torch.cat` function. This concatenates the embeddings along the specified dimension.
 
 ```python
-# Retrieve the parts
-part1 = emb[:, 0, :]
-part2 = emb[:, 1, :]
-part3 = emb[:, 2, :]
-
-# Concatenate the parts
-concatenated = torch.cat([part1, part2, part3], dim=1)
+emb = C[X]
+emb = torch.cat([emb[:, 0], emb[:, 1], emb[:, 2]], dim=1)
 ```
 
-### Resulting Shape
+This approach works but is not generalizable. If the number of embeddings changes, the code needs to be updated.
 
-By concatenating along dimension 1, we transform the shape from `32 x 3 x 2` to `32 x 6`, which allows us to perform the matrix multiplication.
+### Using `torch.unbind`
+
+A more flexible approach is to use `torch.unbind`, which removes a tensor dimension and returns a tuple of slices.
 
 ```python
-print(concatenated.shape)  # Output: torch.Size([32, 6])
+emb = torch.cat(torch.unbind(emb, dim=1), dim=1)
 ```
 
-### Performing Matrix Multiplication
+This method works regardless of the number of embeddings, making the code more robust.
 
-Now that we have the tensor in the correct shape, we can perform the matrix multiplication:
+<img src="./frames/unlabelled/frame_0126.png"/>
 
-```python
-W1 = torch.randn(6, 100)
-b1 = torch.randn(100)
+## Efficient Tensor Reshaping
 
-result = concatenated @ W1 + b1
-```
-
-By using the `torch.cat` function, we can effectively concatenate the embeddings along the desired dimension, transforming the tensor shape to perform the required matrix multiplication. This demonstrates the flexibility and power of PyTorch in handling tensor operations.
-
-<img src="./frames/unlabeled/frame_0118.png"/> ## Handling Tensor Dimensions in PyTorch
-
-In this section, we will discuss how to handle tensor dimensions in PyTorch, specifically focusing on concatenating tensors and using the `torch.unbind` function.
-
-### Concatenating Tensors
-
-We start with a tensor of shape `(32, 3, 2)` and aim to concatenate it into a shape of `(32, 6)`. Initially, this is done by directly indexing the tensor, which is not ideal for generalization. For example, if we change the block size or the number of inputs, the code would need to be manually adjusted.
-
-```python
-torch.cat([emb[:, 0, :], emb[:, 1, :], emb[:, 2, :]], 1).shape
-```
-
-This code concatenates the tensor along the specified dimensions, resulting in a shape of `(32, 6)`.
-
-<img src="./frames/unlabeled/frame_0132.png"/>
-
-### Generalizing with `torch.unbind`
-
-To make the code more flexible, we can use the `torch.unbind` function. This function removes a tensor dimension and returns a tuple of all slices along a given dimension without it. This is exactly what we need to avoid hardcoding the indices.
-
-```python
-torch.unbind(input, dim=1)
-```
-
-Here, `input` is the tensor we want to unbind, and `dim` is the dimension to remove. This function call returns a list of tensors equivalent to the manually indexed tensors.
-
-<img src="./frames/unlabeled/frame_0135.png"/>
-
-### Applying `torch.unbind`
-
-By using `torch.unbind`, we can achieve the same result as before but in a more generalized manner. We call `torch.unbind` on the tensor `emb` along dimension 1, which gives us a list of tensors. We can then concatenate these tensors along the first dimension.
-
-```python
-torch.cat(torch.unbind(emb, 1), 1).shape
-```
-
-This approach ensures that the code will work regardless of the number of inputs or the block size, making it more robust and easier to maintain.
-
-<img src="./frames/unlabeled/frame_0137.png"/>
-
-By leveraging `torch.unbind`, we can handle tensor dimensions more effectively and write code that is both flexible and scalable. # Efficient Tensor Manipulation in PyTorch
-
-In this section, we will explore an efficient way to manipulate tensors in PyTorch. We will start by creating a tensor and then reshape it to different dimensions. This will give us an opportunity to delve into some of the internals of `torch.tensor`.
-
-## Creating and Reshaping Tensors
-
-Let's begin by creating a tensor with elements ranging from 0 to 17. The shape of this tensor is a single vector of 18 numbers.
+PyTorch provides efficient ways to reshape tensors using the `view` method. This allows us to quickly represent a tensor in different shapes without changing the underlying data.
 
 ```python
 a = torch.arange(18)
-a
+a.view(2, 9)
+a.view(9, 2)
+a.view(3, 3, 2)
 ```
 
-The output of this code is:
+As long as the total number of elements remains the same, we can reshape the tensor as needed.
 
-```plaintext
-tensor([ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17])
-```
+By leveraging these techniques, we can efficiently embed and manipulate tensors in PyTorch, enabling more complex neural network architectures and operations.
+# Understanding PyTorch Tensor Views and Efficient Operations
 
-To confirm the shape of the tensor, we can use the `.shape` attribute:
+In this post, we will delve into the internal workings of PyTorch tensors, focusing on how views and efficient operations are handled. This discussion is based on a practical example, and we will explore the concepts of tensor storage, views, and efficient tensor operations.
 
-```python
-a.shape
-```
+## Tensor Storage and Views
 
-The output will be:
+In PyTorch, each tensor has an underlying storage, which is a one-dimensional vector representing the tensor in computer memory. When we manipulate a tensor's view, we are not changing the actual data in memory but rather how this data is interpreted as an n-dimensional tensor.
 
-```plaintext
-torch.Size([18])
-```
+<img src="./frames/unlabelled/frame_0147.png"/>
 
-<img src="./frames/unlabeled/frame_0141.png"/>
+When we call the `view` method on a tensor, we are manipulating attributes such as storage offset, strides, and shapes. These attributes dictate how the one-dimensional sequence of bytes is interpreted as different n-dimensional arrays. This operation is extremely efficient because no memory is copied or moved; only the internal attributes of the tensor are changed.
 
-## Efficient Tensor Operations
+## Practical Example: Reshaping Tensors
 
-In PyTorch, we can efficiently represent and manipulate tensors of different sizes and dimensions. For instance, we can concatenate tensors along a specific dimension using `torch.cat` and `torch.unbind`.
-
-Consider the following example where we concatenate tensors along the second dimension:
-
-```python
-torch.cat([emb[:, 0, :], emb[:, 1, :], emb[:, 2, :]], 1).shape
-```
-
-The output is:
-
-```plaintext
-torch.Size([32, 6])
-```
-
-Alternatively, we can achieve the same result using `torch.unbind`:
-
-```python
-torch.cat(torch.unbind(emb, 1), 1).shape
-```
-
-The output remains the same:
-
-```plaintext
-torch.Size([32, 6])
-```
-
-<img src="./frames/unlabeled/frame_0140.png"/>
-
-## Handling Shape Mismatches
-
-When performing matrix multiplications, it is crucial to ensure that the shapes of the tensors are compatible. In the following example, we encounter a `RuntimeError` due to incompatible shapes:
-
-```python
-emb @ W1 + b1
-```
-
-The error message is:
-
-```plaintext
-RuntimeError: mat1 and mat2 shapes cannot be multiplied (96x2 and 6x100)
-```
-
-To resolve this, we need to ensure that the dimensions of the tensors align correctly for the matrix multiplication to succeed.
-
-<img src="./frames/unlabeled/frame_0139.png"/>
-
-By understanding and utilizing these efficient tensor operations, we can significantly improve the performance and flexibility of our PyTorch code. ## Understanding PyTorch Tensor Views and Efficient Operations
-
-In PyTorch, tensors can be reshaped efficiently using the `view` method. This method allows us to interpret the same data in different shapes without changing the underlying data. Let's explore how this works and why it's efficient.
-
-### Tensor Views
-
-A tensor can be reshaped in multiple ways as long as the total number of elements remains the same. For example, a tensor with 18 elements can be viewed as:
-
-- A 9x2 tensor
-- A 3x3x2 tensor
-
-This is possible because the total number of elements (18) remains constant. In PyTorch, calling the `view` method is extremely efficient because it doesn't change the underlying data. Instead, it manipulates the tensor's metadata to interpret the data differently.
-
-### Underlying Storage
-
-Each tensor in PyTorch has an underlying storage, which is a one-dimensional vector containing all the elements. When we call `view`, we are not changing this storage. Instead, we are modifying attributes like `storage_offset`, `strides`, and `shapes` to interpret the one-dimensional sequence as an n-dimensional tensor.
-
-<img src="./frames/unlabeled/frame_0145.png"/>
-
-### Efficient Reshaping
-
-Let's consider an example where we have a tensor `a` with 18 elements:
+Let's consider a tensor `a` with a shape of (18):
 
 ```python
 a = torch.arange(18)
 a.shape  # torch.Size([18])
 ```
 
-We can view this tensor as a 3x3x2 tensor:
+We can reshape this tensor into a 3x3x2 tensor using the `view` method:
 
 ```python
 a.view(3, 3, 2)
 ```
 
-This operation is efficient because it doesn't create new memory; it only changes how we interpret the existing data.
+This operation does not create new memory but simply changes the view of the existing data.
 
-### Practical Example
+<img src="./frames/unlabelled/frame_0154.png"/>
 
-In our practical example, we have a tensor `emb` with a shape of 32x3x2. We want to reshape it to 32x6:
+## Efficient Concatenation and Multiplication
+
+In our example, we have a tensor `emb` with a shape of (32, 3, 2). We want to reshape this tensor to (32, 6) to perform a matrix multiplication. This can be done efficiently using the `view` method:
 
 ```python
 emb.view(32, 6)
 ```
 
-This reshaping operation stacks the elements in a single row, effectively flattening the tensor.
-
-<img src="./frames/unlabeled/frame_0157.png"/>
-
-### Avoiding Inefficient Operations
-
-Concatenation operations, unlike `view`, are less efficient because they create new tensors with new storage. This means new memory is allocated, which can be costly. For example:
-
-```python
-torch.cat([emb[:, 0, :], emb[:, 1, :], emb[:, 2, :]], 1)
-```
-
-This operation creates a new tensor, which is inefficient compared to using `view`.
-
-### Using Dynamic Shapes
-
-To make our code more flexible, we can avoid hardcoding dimensions. Instead, we can use dynamic shapes:
-
-```python
-emb.view(emb.shape[0], -1)
-```
-
-Here, `-1` tells PyTorch to infer the dimension size based on the total number of elements. This makes the code adaptable to tensors of different sizes.
-
-### Applying Activation Functions
-
-After reshaping, we can apply activation functions like `tanh` to our tensor:
-
-```python
-h = torch.tanh(emb.view(-1, 6) @ W1 + b1)
-```
-
-This results in a tensor `h` with values between -1 and 1, representing the hidden states.
-
-<img src="./frames/unlabeled/frame_0163.png"/>
-
-Using `view` in PyTorch allows for efficient reshaping of tensors without changing the underlying data. This is crucial for performance, especially when dealing with large tensors. Avoiding inefficient operations like concatenation and using dynamic shapes can further optimize our code. # Building a Character-Level Language Model with PyTorch
-
-In this section, we will walk through the process of building a character-level language model using PyTorch. We will cover the creation of the dataset, the architecture of the neural network, and the computation of probabilities for the next character in a sequence.
-
-## Dataset Creation
-
-We start by creating the dataset. The dataset consists of sequences of characters, and for each sequence, we want to predict the next character.
-
-```python
-block_size = 3  # context length: how many characters do we take to predict the next one?
-X, Y = [], []
-for w in words[:5]:
-    context = [0] * block_size
-    for ch in w + '.':
-        ix = stoi[ch]
-        X.append(context)
-        Y.append(ix)
-        context = context[1:] + [ix]
-
-X = torch.tensor(X)
-Y = torch.tensor(Y)
-```
-
-Here, `block_size` is the context length, and `X` and `Y` are the input and output tensors, respectively. The context is a sliding window of characters used to predict the next character.
-
-## Neural Network Architecture
-
-Next, we define the architecture of our neural network. We start by creating the embedding matrix and the first layer's weights and biases.
-
-```python
-C = torch.randn((27, 2))
-emb = C[X]
-emb.shape  # torch.Size([32, 3, 2])
-
-W1 = torch.randn((6, 100))
-b1 = torch.randn(100)
-```
-
-The embedding matrix `C` maps each character to a 2-dimensional vector. The first layer's weights `W1` and biases `b1` are initialized randomly.
-
-We then compute the hidden layer activations using the `tanh` activation function.
+This reshaping allows us to perform the desired matrix multiplication without creating new memory. The resulting tensor `h` will have the shape (32, 100):
 
 ```python
 h = torch.tanh(emb.view(-1, 6) @ W1 + b1)
 h.shape  # torch.Size([32, 100])
 ```
 
-The hidden layer `h` has a shape of `[32, 100]`, where 32 is the batch size and 100 is the number of neurons in the hidden layer.
+<img src="./frames/unlabelled/frame_0172.png"/>
 
-## Final Layer and Logits
+## Broadcasting in PyTorch
 
-We create the final layer's weights and biases and compute the logits.
+When performing operations like addition, PyTorch uses broadcasting to align tensors of different shapes. For example, if we have a tensor `h` of shape (32, 100) and a bias `b1` of shape (100), PyTorch will broadcast `b1` to match the shape of `h`:
 
 ```python
-W2 = torch.randn((100, 27))
-b2 = torch.randn(27)
+h + b1  # Broadcasting b1 to shape (32, 100)
+```
 
+This broadcasting ensures that the same bias vector is added to all rows of the matrix `h`.
+
+## Final Layer and Logits Calculation
+
+Finally, we create the output layer with weights `W2` and biases `b2`. The input to this layer is the 100-dimensional activations, and the output is 27-dimensional logits, corresponding to the 27 possible characters:
+
+```python
+W2 = torch.randn(100, 27)
+b2 = torch.randn(27)
 logits = h @ W2 + b2
 logits.shape  # torch.Size([32, 27])
 ```
 
-The logits have a shape of `[32, 27]`, where 27 is the number of possible characters.
+The logits are then exponentiated and normalized to obtain probabilities.
 
-## Computing Probabilities
+By understanding and utilizing these efficient operations, we can optimize our neural network computations in PyTorch, ensuring both performance and correctness.
+## Understanding Probabilities in Neural Networks
 
-We exponentiate the logits to get the fake counts and normalize them to get probabilities.
+In this section, we will delve into how probabilities are handled in neural networks, particularly focusing on the normalization of probabilities and indexing into probability arrays to predict the next character in a sequence.
+
+### Normalizing Probabilities
+
+First, we ensure that the probabilities are normalized. This means that the sum of probabilities in each row equals one. This is crucial for the probabilities to be valid.
 
 ```python
-counts = logits.exp()
 prob = counts / counts.sum(1, keepdims=True)
-prob.shape  # torch.Size([32, 27])
+prob.shape
 ```
 
-The `prob` tensor contains the probabilities for each character in the sequence, and each row sums to one.
+The shape of `prob` is `(32, 27)`, indicating that we have 32 rows and 27 columns, with each row summing to one.
 
-## Indexing Probabilities
+<img src="./frames/unlabelled/frame_0181.png"/>
 
-We now index into the rows of `prob` to get the probability assigned to the correct character.
+### Creating the Dataset
+
+We have an array `Y` which contains the actual next character in the sequence that we want to predict. This array was created during the dataset creation process.
+
+```python
+Y = torch.tensor([5, 13, 15, 12, 9, 22, 9, 1, 0, 15, 12, 1, 0, 19, 1, 2, 5, 12, 1, 0, 19, 15, 16, 8, 9, 1, 0])
+```
+
+<img src="./frames/unlabelled/frame_0184.png"/>
+
+### Indexing into Probabilities
+
+To predict the next character, we need to index into the rows of `prob` and extract the probability assigned to the correct character as given by `Y`.
 
 ```python
 torch.arange(32)
-Y
+```
 
+This creates an iterator over numbers from 0 to 31. We can then use this to index into `prob`.
+
+```python
 prob[torch.arange(32), Y]
 ```
 
-Here, `torch.arange(32)` creates an iterator over numbers from 0 to 31, and we use it to index into `prob` to get the probabilities for the correct characters as given by `Y`.
+This line of code iterates over the rows of `prob` and grabs the column specified by `Y` for each row. This gives us the current probabilities assigned by the neural network to the correct character in the sequence.
 
-In this section, we have built a simple character-level language model using PyTorch. We created the dataset, defined the neural network architecture, computed the logits, and normalized them to get probabilities. Finally, we indexed into the probabilities to get the values assigned to the correct characters. This model is not yet trained, so the probabilities are not accurate, but this will improve with training. ## Minimizing Loss in Neural Networks
+<img src="./frames/unlabelled/frame_0186.png"/>
 
-In this section, we will discuss how to minimize the loss in a neural network to predict the correct character in a sequence. The loss value here is 17, and our goal is to reduce this value to improve the network's performance.
+### Evaluating the Probabilities
 
-### Dataset and Parameters
+The extracted probabilities show how confident the neural network is about its predictions. Initially, these probabilities might not look very promising, as the network hasn't been trained yet. For example, some probabilities might be as low as 0.0701, indicating that the network thinks these characters are extremely unlikely.
 
-First, let's look at the dataset and the parameters we have defined. We are using a generator to ensure reproducibility. All parameters are clustered into a single list, making it easy to count them. Currently, we have about 3,400 parameters.
+However, as we train the neural network, these probabilities will improve. Ideally, we want the probability for the correct character to be close to one, indicating a high confidence in the prediction.
 
-<img src="./frames/unlabeled/frame_0194.png"/>
+```python
+# Example of probabilities after indexing
+tensor([0.2, 0.0701, ...])
+```
 
-### Forward Pass and Loss Calculation
+<img src="./frames/unlabelled/frame_0187.png"/>
 
-Here is the forward pass as we developed it. We arrive at a single number, the loss, which expresses how well the neural network works with the current setting of parameters.
+By understanding and manipulating these probabilities, we can train our neural network to make more accurate predictions over time.
+# Building a Character-Level Language Model with PyTorch
+
+## Loss Calculation
+
+In this section, we calculate the loss for our neural network. The loss value here is 17, which we aim to minimize to improve the network's prediction accuracy for the correct character in the sequence.
+
+<img src="./frames/unlabelled/frame_0193.png"/>
+
+## Rewriting for Clarity and Reproducibility
+
+I have rewritten the code to make it more respectable and organized. Here's a breakdown of the changes:
+
+1. **Dataset and Parameters**: We define our dataset and parameters.
+2. **Reproducibility**: We use a generator to ensure reproducibility.
+3. **Parameter Clustering**: All parameters are clustered into a single list, making it easier to count them. Currently, we have about 3,400 parameters.
+
+```python
+g = torch.Generator().manual_seed(2147483647)  # for reproducibility
+C = torch.randn((27, 2), generator=g)
+W1 = torch.randn((6, 100), generator=g)
+b1 = torch.randn(100, generator=g)
+W2 = torch.randn((100, 27), generator=g)
+b2 = torch.randn(27, generator=g)
+parameters = [C, W1, b1, W2, b2]
+```
+
+## Forward Pass and Loss Calculation
+
+This is the forward pass as we developed it, resulting in a single number representing the loss. This loss value indicates how well the neural network performs with the current parameter settings.
 
 ```python
 emb = C[X]  # (32, 3, 2)
@@ -871,132 +587,139 @@ logits = h @ W2 + b2  # (32, 27)
 counts = logits.exp()
 prob = counts / counts.sum(1, keepdims=True)
 loss = -prob[torch.arange(32), Y].log().mean()
-loss
 ```
 
-### Using PyTorch's Cross-Entropy Function
+<img src="./frames/unlabelled/frame_0195.png"/>
 
-To make the code more respectable and efficient, we can use PyTorch's built-in `functional.cross_entropy` function. This function is specifically designed for classification tasks and calculates the loss more efficiently.
+## Improving the Code
+
+To make the code even more respectable, we avoid reinventing the wheel by using existing functions for common operations. This approach not only simplifies the code but also makes it more efficient and easier to understand.
+
+By organizing the code and ensuring reproducibility, we can better track the performance of our neural network and make necessary adjustments to improve its accuracy.
+## Efficient Cross-Entropy Calculation in PyTorch
+
+In this section, we will discuss the use of the `torch.nn.functional.cross_entropy` function in PyTorch to calculate cross-entropy loss more efficiently.
+
+### Using `torch.nn.functional.cross_entropy`
+
+To calculate cross-entropy loss, we can simply call `F.cross_entropy` and pass in the logits and the array of targets `y`. This function computes the exact same loss as a manual implementation but in a much more efficient manner.
 
 ```python
 import torch.nn.functional as F
 
-loss = F.cross_entropy(logits, Y)
-loss
+# Example usage
+loss = F.cross_entropy(logits, y)
 ```
 
-By replacing the manual calculation with `F.cross_entropy`, we simplify the code and improve its efficiency.
+This single line of code replaces the need for manually computing the loss, which involves multiple steps and intermediate tensors.
 
-<img src="./frames/unlabeled/frame_0198.png"/>
+<img src="./frames/unlabelled/frame_0199.png"/>
 
-This approach not only makes the code cleaner but also leverages optimized functions provided by PyTorch, ensuring better performance and readability. ## Efficient Implementation of Cross Entropy in PyTorch
+### Advantages of `F.cross_entropy`
 
-In this post, we'll discuss the importance of using PyTorch's built-in functions for operations like cross-entropy, and why you should avoid implementing these from scratch. We'll also delve into the numerical stability and efficiency benefits provided by PyTorch.
+There are several reasons to prefer `F.cross_entropy` over a manual implementation:
 
-### Why Use PyTorch's Built-in Functions?
+1. **Memory Efficiency**: When using `F.cross_entropy`, PyTorch does not create all the intermediate tensors that a manual implementation would. This is because each intermediate tensor occupies memory, making the process inefficient.
 
-When you use `F.cross_entropy` in PyTorch, it avoids creating numerous intermediate tensors in memory, which can be inefficient. Instead, PyTorch clusters these operations and often uses fused kernels to evaluate expressions efficiently. This clustering leads to a more efficient backward pass, both in terms of computation and memory usage.
+2. **Fused Kernels**: PyTorch often clusters operations and uses fused kernels to evaluate these expressions efficiently. This clustering of mathematical operations leads to significant performance improvements.
 
-#### Example: Tanh Backward Pass
+3. **Efficient Backward Pass**: The backward pass can be made much more efficient with `F.cross_entropy`. This is not only due to the use of fused kernels but also because the backward pass can be simplified analytically and mathematically.
 
-Consider the implementation of the `tanh` function. The forward pass involves a complex mathematical expression, but the backward pass can be simplified significantly. Instead of backpropagating through each operation individually, we can use the derivative of `tanh`, which is `1 - t^2`. This simplification is possible because we can reuse calculations and derive the derivative analytically.
+### Example: Simplifying the Backward Pass
 
-<img src="./frames/unlabeled/frame_0206.png"/>
-
-### Numerical Stability in Cross Entropy
-
-Another significant advantage of using `F.cross_entropy` is its numerical stability. Let's explore this with an example.
-
-#### Example: Logits and Exponentiation
-
-Suppose we have logits with values `[-2, -3, 0, 5]`. When we exponentiate and normalize these values, we get a well-behaved probability distribution. However, if some logits take on extreme values, such as `-100`, the probabilities remain well-behaved. But if we have very positive logits, like `100`, we run into numerical issues, resulting in `NaN` values due to floating-point overflow.
+Consider the implementation of the `tanh` function in a micrograd library. The forward pass of the `tanh` operation involves a complex mathematical expression. However, the backward pass can be simplified significantly.
 
 ```python
-logits = torch.tensor([-100, -3, 0, 5])
-counts = logits.exp()
-probs = counts / counts.sum()
-print(probs)  # tensor([0.0000e+00, 3.3311e-04, 6.6906e-03, 9.9293e-01])
+def tanh(self):
+    x = self.data
+    t = (math.exp(2*x) - 1) / (math.exp(2*x) + 1)
+    out = Value(t, (self,), 'tanh')
+    
+    def _backward():
+        self.grad += (1 - t**2) * out.grad
+    out._backward = _backward
+    
+    return out
 ```
 
-<img src="./frames/unlabeled/frame_0212.png"/>
+In the backward pass, instead of individually backpropagating through each operation (e.g., `x`, `2*x`, `-1`, division), we use the simplified expression `1 - t^2`. This reuse of calculations and mathematical simplification leads to a more efficient implementation.
+
+<img src="./frames/unlabelled/frame_0207.png"/>
+
+By leveraging these optimizations, PyTorch ensures that both the forward and backward passes are executed efficiently, making `F.cross_entropy` the preferred choice for calculating cross-entropy loss in practice.
+## Numerical Stability in Cross Entropy Loss
+
+In this section, we will discuss the numerical stability of the cross-entropy loss function in PyTorch and how it handles extreme values in logits.
+
+### Understanding Logits and Probabilities
+
+Let's start with an example. Suppose we have logits with the following values: -2, 3, -3, 0, and 5. When we take the exponent of these logits and normalize them to sum to one, we get a well-behaved probability distribution.
+
+However, during the optimization of a neural network, logits can take on more extreme values. For instance, if some logits become very negative, like -100, the probabilities remain well-behaved and sum to one. This is because the exponent of a very negative number is a very small number close to zero.
+
+### The Problem with Very Positive Logits
+
+The issue arises when logits become very positive. For example, if a logit is 100, we run into trouble because the exponent of 100 is a very large number, which can exceed the dynamic range of floating-point numbers. This results in a "not a number" (NaN) error.
 
 ### PyTorch's Solution
 
-PyTorch addresses this issue by normalizing the logits. It subtracts the maximum logit value from all logits, ensuring that the largest logit is zero and the others are negative. This normalization prevents overflow and ensures numerical stability.
+PyTorch addresses this issue by normalizing the logits. It calculates the maximum value in the logits and subtracts it from all logits. This ensures that the largest logit becomes zero and all other logits become negative. This normalization step prevents overflow and ensures that the resulting probabilities are well-behaved.
+
+Here is a code snippet demonstrating this:
 
 ```python
-logits = torch.tensor([-5, -3, 0, 5]) - 5
-counts = logits.exp()
-probs = counts / counts.sum()
-print(probs)  # tensor([4.5079e-05, 3.3309e-03, 6.6903e-03, 9.9293e-01])
+import torch
+
+logits = torch.tensor([-2.0, 3.0, -3.0, 0.0, 5.0])
+probabilities = torch.softmax(logits, dim=0)
+print(probabilities)
 ```
 
-<img src="./frames/unlabeled/frame_0224.png"/>
+### Example in Jupyter Notebook
 
-### Setting Up Neural Network Training
+Let's look at an example from a Jupyter Notebook to illustrate this concept further.
 
-Let's set up the training loop for our neural network. We'll use the forward pass, backward pass, and parameter update steps.
+<img src="./frames/unlabelled/frame_0211.png"/>
 
-#### Forward Pass
+In the above image, we see the setup of logits and the calculation of probabilities using PyTorch's `torch.softmax` function. The code ensures that even with extreme values, the probabilities remain well-behaved.
+
+### Benefits of Using Cross Entropy in PyTorch
+
+1. **Efficiency**: The cross-entropy function in PyTorch is optimized for performance, making the forward and backward passes more efficient.
+2. **Numerical Stability**: By normalizing logits, PyTorch ensures that the calculations remain within the dynamic range of floating-point numbers, preventing overflow and NaN errors.
+
+In summary, PyTorch's implementation of cross-entropy loss is both efficient and numerically stable, making it a reliable choice for training neural networks.
+# Training a Neural Network with PyTorch
+
+In this post, we will walk through the process of training a neural network using PyTorch. We will cover the forward pass, backward pass, and parameter updates. Additionally, we will discuss overfitting and how it affects our model's performance.
+
+## Forward Pass
+
+The forward pass involves calculating the loss using the cross-entropy function. Here is the code snippet for the forward pass:
 
 ```python
-emb = C[X]  # (32, 3, 2)
-h = torch.tanh(emb.view(-1, 6) @ W1 + b1)  # (32, 100)
-logits = h @ W2 + b2  # (32, 27)
 loss = F.cross_entropy(logits, Y)
 ```
 
-#### Backward Pass
+## Backward Pass
 
-First, we set the gradients to zero:
+The backward pass involves setting the gradients to zero, computing the gradients, and updating the parameters. Below is the code for the backward pass:
 
 ```python
 for p in parameters:
     p.grad = None
 loss.backward()
-```
-
-#### Parameter Update
-
-We update the parameters using the gradients:
-
-```python
 for p in parameters:
     p.data += -0.1 * p.grad
 ```
 
-#### Training Loop
+We start by setting the gradients to zero using `p.grad = None`, which is equivalent to setting them to zero in PyTorch. Then, we call `loss.backward()` to populate the gradients. Finally, we update the parameters by nudging them with the learning rate times the gradient.
 
-We repeat the forward and backward passes for several iterations:
+<img src="./frames/unlabelled/frame_0247.png">
 
-```python
-for _ in range(10):
-    # Forward pass
-    emb = C[X]  # (32, 3, 2)
-    h = torch.tanh(emb.view(-1, 6) @ W1 + b1)  # (32, 100)
-    logits = h @ W2 + b2  # (32, 27)
-    loss = F.cross_entropy(logits, Y)
-    print(loss.item())
-    
-    # Backward pass
-    for p in parameters:
-        p.grad = None
-    loss.backward()
-    
-    # Update
-    for p in parameters:
-        p.data += -0.1 * p.grad
-```
+## Training Loop
 
-<img src="./frames/unlabeled/frame_0230.png"/>
-
-By using PyTorch's built-in functions and following these steps, we ensure that our neural network training is both efficient and numerically stable. # Optimizing Neural Networks with Mini-Batches in PyTorch
-
-In this session, we started with a loss of 17 and observed how it decreased significantly over time. Initially, we ran the optimization for a thousand iterations, which resulted in a very low loss, indicating that our model was making good predictions. However, this was achieved by overfitting a small dataset of only 32 examples.
-
-## Overfitting on a Small Dataset
-
-We began by overfitting a single batch of data, which consisted of 32 examples. Given that our model had 3,400 parameters, it was relatively easy to achieve a low loss on such a small dataset. This is a classic case of overfitting, where the model performs exceptionally well on the training data but may not generalize to new data.
+We run the training loop for a thousand iterations to minimize the loss. Here is the code for the training loop:
 
 ```python
 for _ in range(1000):
@@ -1005,238 +728,281 @@ for _ in range(1000):
     h = torch.tanh(emb.view(-1, 6) @ W1 + b1)  # (32, 100)
     logits = h @ W2 + b2  # (32, 27)
     loss = F.cross_entropy(logits, Y)
-    print(loss.item())
-
+    
     # backward pass
     for p in parameters:
         p.grad = None
     loss.backward()
-
+    
     # update
     for p in parameters:
         p.data += -0.1 * p.grad
+    
+    print(loss.item())
 ```
 
-<img src="./frames/unlabeled/frame_0240.png"/>
+We start with a loss of 17 and observe a significant decrease as we run the loop. This indicates that our model is making good predictions.
 
-Despite the low loss, we couldn't achieve a loss of exactly zero. This is because some inputs can have multiple valid outputs, making it impossible to perfectly predict every example.
+## Overfitting
 
-## Expanding to the Full Dataset
+In this example, we are overfitting a single batch of data. We have 32 examples and 3,400 parameters, making it easy to achieve a very low loss. However, this is not ideal for generalization.
 
-Next, we expanded our dataset to include all words, resulting in 228,000 examples instead of just 32. This required reinitializing the weights and ensuring that all parameters required gradients.
+<img src="./frames/unlabelled/frame_0229.png">
+
+## Analyzing Predictions
+
+We can analyze the logits and their maximum values to understand the model's predictions. Here is the code to inspect the logits:
 
 ```python
-X.shape, Y.shape  # dataset
-# Output: (torch.Size([32, 3]), torch.Size([32]))
-
-# Reinitialize weights
-g = torch.Generator().manual_seed(2147483647)  # for reproducibility
-C = torch.rand((27, 2), generator=g)
-W1 = torch.rand((6, 100), generator=g)
-b1 = torch.rand(100, generator=g)
-W2 = torch.rand((100, 27), generator=g)
-b2 = torch.rand(27, generator=g)
-parameters = [C, W1, b1, W2, b2]
-
-sum(p.nelement() for p in parameters)  # number of parameters in total
-# Output: 3481
-
-for p in parameters:
-    p.requires_grad = True
+logits.max(1)
 ```
 
-<img src="./frames/unlabeled/frame_0237.png"/>
+The `max` function in PyTorch returns both the maximum values and their indices. We compare these indices with the labels to see how close our predictions are.
 
-## Implementing Mini-Batches
+```python
+Y
+```
 
-To optimize the neural network efficiently, we implemented mini-batches. Instead of processing all 228,000 examples in each iteration, we randomly selected a subset of the data (mini-batch) and performed forward and backward passes on this subset. This significantly reduced the computation time per iteration.
+In some cases, the predicted indices differ from the labels, indicating that we are not able to achieve a loss of zero. This is because multiple outputs are possible for the same input in our training set.
+
+<img src="./frames/unlabelled/frame_0249.png">
+
+By following these steps, we can train a neural network using PyTorch. While overfitting a small batch of data can lead to very low loss, it is important to train on a larger dataset for better generalization.
+# Building a Character-Level Language Model with PyTorch
+
+In this blog post, we will walk through the process of building a character-level language model using PyTorch. We will cover the steps from data preparation to model training and discuss some optimization techniques to improve training efficiency.
+
+## Data Preparation
+
+First, we need to build the vocabulary of characters and map them to/from integers. This is essential for converting our text data into a format that can be processed by the neural network.
+
+```python
+chars = sorted(list(set(''.join(words))))
+stoi = {s: i+1 for i, s in enumerate(chars)}
+stoi['.'] = 0
+itos = {i: s for s, i in stoi.items()}
+print(itos)
+```
+
+Next, we build the dataset. We define a context length (`block_size`) which determines how many characters we use to predict the next one.
+
+```python
+block_size = 3
+X, Y = [], []
+for w in words:
+    context = [0] * block_size
+    for ch in w + '.':
+        ix = stoi[ch]
+        X.append(context)
+        Y.append(ix)
+        context = context[1:] + [ix]
+X = torch.tensor(X)
+Y = torch.tensor(Y)
+```
+
+## Model Initialization
+
+We initialize the model parameters, including the embedding matrix and the weights for the hidden layers.
+
+```python
+C = torch.randn((27, 2))
+emb = C[X]
+emb.shape
+```
+
+```python
+W1 = torch.randn((6, 100))
+b1 = torch.randn(100)
+W2 = torch.randn((100, 27))
+b2 = torch.randn(27)
+parameters = [C, W1, b1, W2, b2]
+```
+
+## Training the Model
+
+We set up the training loop, where we perform forward and backward passes and update the model parameters. Initially, we use the entire dataset for each iteration, which is computationally expensive.
 
 ```python
 for _ in range(10):
-    # minibatch construct
-    ix = torch.randint(0, X.shape[0], (32,))
-
-    # forward pass
-    emb = C[X[ix]]  # (32, 3, 2)
-    h = torch.tanh(emb.view(-1, 6) @ W1 + b1)  # (32, 100)
-    logits = h @ W2 + b2  # (32, 27)
-    loss = F.cross_entropy(logits, Y[ix])
+    emb = C[X]
+    h = torch.tanh(emb.view(-1, 6) @ W1 + b1)
+    logits = h @ W2 + b2
+    loss = F.cross_entropy(logits, Y)
     print(loss.item())
-
-    # backward pass
+    
     for p in parameters:
         p.grad = None
     loss.backward()
-
-    # update
     for p in parameters:
         p.data += -0.1 * p.grad
 ```
 
-<img src="./frames/unlabeled/frame_0258.png"/>
+## Optimization with Mini-Batches
 
-By using mini-batches, we were able to run many iterations almost instantly, making the optimization process much more efficient. This approach is commonly used in practice to handle large datasets and speed up the training of neural networks. ## Optimizing the Learning Rate for Faster Convergence
-
-In this section, we will discuss how to optimize the learning rate to decrease the loss much faster. When dealing with mini-batches, the quality of our gradient is lower, so the direction is not as reliable. It's not the actual gradient direction, but the gradient direction is good enough even when estimating on only 32 examples. This makes it useful and much better to have an approximate gradient and make more steps than to evaluate the exact gradient and take fewer steps. This approach works quite well in practice.
-
-### Evaluating the Loss
-
-Let's continue the optimization by moving the `loss.item()` print statement to the end of the loop. Initially, we are hovering around a loss of 2.5, but this is only for the mini-batch. To get a full sense of how well the model is doing, we need to evaluate the loss for the entire training set.
+To improve training efficiency, we switch to using mini-batches. This involves randomly selecting a subset of the dataset for each forward and backward pass.
 
 ```python
-# Evaluate the loss for the entire training set
-emb = C[X[ix]]  # (32, 3, 2)
+batch_size = 32
+for _ in range(10):
+    idx = torch.randint(0, X.shape[0], (batch_size,))
+    X_batch = X[idx]
+    Y_batch = Y[idx]
+    
+    emb = C[X_batch]
+    h = torch.tanh(emb.view(-1, 6) @ W1 + b1)
+    logits = h @ W2 + b2
+    loss = F.cross_entropy(logits, Y_batch)
+    print(loss.item())
+    
+    for p in parameters:
+        p.grad = None
+    loss.backward()
+    for p in parameters:
+        p.data += -0.1 * p.grad
+```
+
+By using mini-batches, we significantly reduce the computational load per iteration, allowing for faster training and more frequent updates to the model parameters.
+
+# Optimizing Neural Network Training with Mini-Batches and Learning Rate Tuning
+
+In this post, we will explore the process of optimizing neural network training using mini-batches and tuning the learning rate. We will discuss the implementation details and the rationale behind these techniques.
+
+## Mini-Batch Construction
+
+To speed up the training process, we use mini-batches. Instead of processing the entire dataset at once, we process smaller subsets of the data. This approach not only speeds up the training but also helps in better generalization of the model.
+
+```python
+ix = torch.randint(0, X.shape[0], (32,))
+```
+
+Here, we create a tensor of random integers that index into our dataset. If our mini-batch size is 32, we can construct the mini-batch as follows:
+
+```python
+# Mini-batch construct
+emb = C[ix]  # (32, 3, 2)
 h = torch.tanh(emb.view(-1, 6)) @ W1 + b1  # (32, 100)
 logits = h @ W2 + b2  # (32, 27)
 loss = F.cross_entropy(logits, Y[ix])
+```
+
+By indexing into `X` and `Y` with `ix`, we only grab 32 rows, making the embeddings `(32, 3, 2)` instead of the entire dataset size. This makes the process much faster.
+
+<img src="./frames/unlabelled/frame_0259.png"/>
+<br>
+
+## Gradient Descent with Mini-Batches
+
+Using mini-batches, we can run many examples nearly instantly and decrease the loss much faster. However, the quality of our gradient is lower because it is an approximation based on a subset of the data. Despite this, the approximate gradient is good enough to be useful.
+
+```python
+# Backward pass
+for p in parameters:
+    p.grad = None
+loss.backward()
+
+# Update
+for p in parameters:
+    p.data += -0.0001 * p.grad
+```
+
+Even with the lower quality gradient, it is much better to have an approximate gradient and make more steps than to evaluate the exact gradient and take fewer steps.
+
+## Evaluating the Loss
+
+To get a full sense of how well the model is doing, we evaluate the loss on the entire training set:
+
+```python
+# Evaluate loss for all of X and Y
+loss = F.cross_entropy(logits, Y)
 print(loss.item())
 ```
 
-<img src="./frames/unlabeled/frame_0265.png"/>
-
-### Running the Optimization
-
-After running the optimization for a while, we observe the following loss values:
-
-- 2.7 on the entire training set
-- 2.6
-- 2.57
-- 2.53
-
-One issue is that we don't know if we're stepping too slow or too fast. The learning rate of 0.1 was just a guess. So, how do we determine this learning rate and gain confidence that we're stepping at the right speed?
-
-### Determining a Reasonable Learning Rate
-
-One way to determine a reasonable learning rate is as follows:
-
-1. **Reset Parameters**: Reset the parameters to their initial settings.
-2. **Print Loss at Each Step**: Print the loss at each step, but only do 10 or 100 steps to find a reasonable search range.
-
-For example, if the learning rate is very low, the loss barely decreases, indicating that it's too low. Let's try this approach:
+After running the optimization for a while, we observe the loss decreasing:
 
 ```python
-# Reset parameters and try a low learning rate
-for p in parameters:
-    p.requires_grad = True
-
-for _ in range(100):
-    # Minibatch construct
-    ix = torch.randint(0, X.shape[0], (32,))
-    
-    # Forward pass
-    emb = C[ix]  # (32, 3, 2)
-    h = torch.tanh(emb.view(-1, 6)) @ W1 + b1  # (32, 100)
-    logits = h @ W2 + b2  # (32, 27)
-    loss = F.cross_entropy(logits, Y[ix])
-    print(loss.item())
-    
-    # Backward pass
-    for p in parameters:
-        p.grad = None
-    loss.backward()
-    
-    # Update
-    for p in parameters:
-        p.data += -0.1 * p.grad
+# Example loss values
+2.6, 2.57, 2.53
 ```
 
-<img src="./frames/unlabeled/frame_0270.png"/>
+## Determining the Learning Rate
 
-### Finding the Exploding Point
+One challenge in training neural networks is determining the appropriate learning rate. We need to find a balance where the learning rate is neither too slow nor too fast. Here's a method to determine a reasonable learning rate:
 
-Next, let's find the point at which the loss explodes. We can try a learning rate of -1 and observe the behavior:
+1. **Reset Parameters**: Start with the initial settings.
+2. **Print Loss at Each Step**: Observe the loss for a small number of steps.
+3. **Adjust Learning Rate**: Find the range where the loss decreases steadily without instability.
 
 ```python
-# Try a higher learning rate
+# Reset parameters
 for p in parameters:
-    p.requires_grad = True
+    p.data = torch.randn_like(p)
 
-for _ in range(100):
-    # Minibatch construct
-    ix = torch.randint(0, X.shape[0], (32,))
-    
-    # Forward pass
-    emb = C[ix]  # (32, 3, 2)
-    h = torch.tanh(emb.view(-1, 6)) @ W1 + b1  # (32, 100)
-    logits = h @ W2 + b2  # (32, 27)
-    loss = F.cross_entropy(logits, Y[ix])
-    print(loss.item())
-    
-    # Backward pass
-    for p in parameters:
-        p.grad = None
-    loss.backward()
-    
-    # Update
-    for p in parameters:
-        p.data += -1 * p.grad
+# Try different learning rates
+learning_rates = [0.001, 0.01, 0.1, 1, 10]
+for lr in learning_rates:
+    for _ in range(100):
+        # Forward pass
+        loss = F.cross_entropy(logits, Y)
+        print(loss.item())
+        
+        # Backward pass
+        for p in parameters:
+            p.grad = None
+        loss.backward()
+        
+        # Update
+        for p in parameters:
+            p.data += -lr * p.grad
 ```
 
-<img src="./frames/unlabeled/frame_0276.png"/>
+By experimenting with different learning rates, we can identify the range where the loss decreases effectively.
 
-We see that with a learning rate of -1, the loss is minimized but is quite unstable, going up and down. This indicates that -1 is probably a fast learning rate. Let's try -10:
+<img src="./frames/unlabelled/frame_0278.png"/>
+<br>
+
+## Exponential Learning Rate Search
+
+Instead of stepping linearly between learning rates, we can step exponentially. This approach helps in covering a wider range of learning rates more effectively.
 
 ```python
-# Try an even higher learning rate
-for p in parameters:
-    p.requires_grad = True
-
-for _ in range(100):
-    # Minibatch construct
-    ix = torch.randint(0, X.shape[0], (32,))
-    
-    # Forward pass
-    emb = C[ix]  # (32, 3, 2)
-    h = torch.tanh(emb.view(-1, 6)) @ W1 + b1  # (32, 100)
-    logits = h @ W2 + b2  # (32, 27)
-    loss = F.cross_entropy(logits, Y[ix])
-    print(loss.item())
-    
-    # Backward pass
-    for p in parameters:
-        p.grad = None
-    loss.backward()
-    
-    # Update
-    for p in parameters:
-        p.data += -10 * p.grad
+# Exponential learning rate search
+lre = torch.linspace(-3, 0, 1000)
+learning_rates = 10 ** lre
 ```
 
-<img src="./frames/unlabeled/frame_0277.png"/>
+By stepping linearly between the exponents of the learning rates, we can search over a range from `0.001` to `1` more efficiently.
 
-With a learning rate of -10, the optimization does not work well, indicating that -10 is way too big. Therefore, -1 was somewhat reasonable. By resetting and trying different learning rates, we can find a suitable range for our optimization process. ## Exploring Learning Rates in PyTorch
+In summary, using mini-batches and tuning the learning rate are crucial techniques in optimizing neural network training. These methods help in speeding up the training process and finding the optimal parameters for the model.
+# Optimizing Learning Rates in Neural Networks
 
-In this section, we will explore how to effectively search for optimal learning rates using PyTorch. We will use a range of learning rates, exponentially spaced, to find the best learning rate for our model.
+In this section, we will explore how to optimize learning rates for training a neural network. We will use a dynamic learning rate that changes over the course of training, rather than a fixed learning rate. This approach can help us find a more optimal learning rate and improve the performance of our model.
 
-### Generating Learning Rates
+## Setting Up the Learning Rate Schedule
 
-First, we generate a range of learning rates. Instead of stepping linearly, we will step through the exponents of these learning rates.
+First, we initialize the learning rates using an exponential scale. This means that we start with a very low learning rate and gradually increase it.
 
 ```python
 lre = torch.linspace(-3, 0, 1000)
-lrs = 10**lre
+lrs = 10 ** lre
 ```
 
-This creates 1,000 learning rates between \(10^{-3}\) and \(10^0\) (i.e., 0.001 and 1), spaced exponentially.
+Here, `lre` is a tensor of 1,000 values linearly spaced between -3 and 0. We then exponentiate these values to get `lrs`, which will be our learning rates.
 
-<img src="./frames/unlabeled/frame_0284.png"/>
+<img src="./frames/unlabelled/frame_0289.png"/>
 
-### Running the Optimization
+## Running the Optimization
 
-Next, we will run the optimization process for 1,000 steps. Instead of using a fixed learning rate, we will use the learning rates generated above.
+We will run the optimization for 1,000 steps, using the learning rates we just defined. We will also keep track of the learning rates and the corresponding losses.
 
 ```python
 lri = []
 lossi = []
 
 for i in range(1000):
-    # Minibatch construct
-    ix = torch.randint(0, X.shape[0], (32,))
-    
     # Forward pass
-    emb = C[ix]  # (32, 3, 2)
-    h = torch.tanh(emb.view(-1, 6) @ W1 + b1)  # (32, 100)
-    logits = h @ W2 + b2  # (32, 27)
+    emb = C[X[ix]]
+    h = torch.tanh(emb.view(-1, 6) @ W1 + b1)
+    logits = h @ W2 + b2
     loss = F.cross_entropy(logits, Y[ix])
     
     # Backward pass
@@ -1254,183 +1020,35 @@ for i in range(1000):
     lossi.append(loss.item())
 ```
 
-Here, we start with a very low learning rate (0.001) and increase it up to 1. We track the learning rates and the corresponding losses.
+In this loop, we perform a forward pass to compute the loss, a backward pass to compute the gradients, and then update the parameters using the current learning rate. We also append the learning rate and loss to our tracking lists.
 
-<img src="./frames/unlabeled/frame_0294.png"/>
+<img src="./frames/unlabelled/frame_0298.png"/>
 
-### Plotting the Results
+## Plotting Learning Rates vs. Losses
 
-Finally, we plot the learning rates against the losses to visualize the performance.
+After running the optimization, we can plot the learning rates against the losses to visualize how the learning rate affects the training process.
 
 ```python
 plt.plot(lri, lossi)
+plt.xlabel('Learning Rate')
+plt.ylabel('Loss')
+plt.show()
 ```
 
-<img src="./frames/unlabeled/frame_0300.png"/>
+Typically, the plot will show that very low learning rates result in little progress, while very high learning rates can cause instability. There is usually a "sweet spot" where the learning rate is just right.
 
-In the plot, we observe that:
+## Fine-Tuning the Learning Rate
 
-- At very low learning rates, the model barely learns anything.
-- There is a sweet spot where the learning rate is optimal.
-- As the learning rate increases further, the model becomes unstable.
-
-To better understand the optimal learning rate, we can plot the exponents of the learning rates instead.
+Based on the plot, we can identify a good learning rate. For example, if the plot shows that a learning rate of 0.1 is optimal, we can set our learning rate to this value and run the optimization for a longer period.
 
 ```python
-plt.plot(lre, lossi)
-```
-
-<img src="./frames/unlabeled/frame_0304.png"/>
-
-From this plot, we see that the optimal learning rate exponent is around -1, which corresponds to a learning rate of \(10^{-1}\) or 0.1. This is where the loss is minimized, indicating a good learning rate for our model. # Optimizing Learning Rate and Model Evaluation
-
-In this session, we will discuss how to determine a good learning rate, the importance of learning rate decay, and the significance of splitting your dataset for training, validation, and testing.
-
-## Determining a Good Learning Rate
-
-Initially, we set our learning rate to 0.1, which proved to be quite effective. To confirm this, we can remove the tracking and set the learning rate (`lr`) to \(10^{-1}\) or 0.1. With this confidence, we can increase the number of iterations, reset our optimization, and run for an extended period using this learning rate.
-
-```python
-# Set learning rate
 lr = 0.1
-
-# Run optimization for 10,000 steps
 for i in range(10000):
-    # Optimization code here
-    pass
-```
-
-## Learning Rate Decay
-
-After running several iterations, we observe the loss. For instance, after 10,000 steps, the loss might be around 2.48. Running another 10,000 steps might reduce it to 2.46. At this point, we can apply learning rate decay by reducing the learning rate by a factor of 10.
-
-```python
-# Apply learning rate decay
-lr *= 0.1
-```
-
-This approach helps in the later stages of training, allowing the model to converge more smoothly.
-
-<img src="./frames/unlabeled/frame_0311.png"/>
-
-## Comparing Models
-
-In our previous session, we achieved a bigram loss of 2.45. With our current model, we have surpassed this, achieving a loss of around 2.3. This indicates a significant improvement.
-
-However, it's crucial to note that a lower loss on the training set does not necessarily mean a better model. As the model's capacity increases (i.e., more parameters), it becomes more prone to overfitting. Overfitting occurs when the model memorizes the training data instead of generalizing from it.
-
-## Dataset Splits
-
-To mitigate overfitting and ensure our model generalizes well, we split our dataset into three parts:
-
-1. **Training Split**: Typically 80% of the dataset, used to optimize the model parameters.
-2. **Validation Split (Dev Split)**: Around 10%, used to tune hyperparameters such as the size of hidden layers, embedding dimensions, and regularization strength.
-3. **Test Split**: The remaining 10%, used sparingly to evaluate the final model performance.
-
-```python
-# Example of dataset split
-train_data, val_data, test_data = split_dataset(data, train_ratio=0.8, val_ratio=0.1, test_ratio=0.1)
-```
-
-<img src="./frames/unlabeled/frame_0308.png"/>
-
-## Hyperparameter Tuning
-
-Hyperparameters are crucial for defining the architecture and behavior of the neural network. Examples include the size of the hidden layer and the embedding dimensions. The validation split helps in experimenting with different hyperparameter settings to find the optimal configuration.
-
-```python
-# Example of hyperparameter tuning
-hidden_layer_size = [50, 100, 200]
-embedding_size = [2, 4, 8]
-
-for h in hidden_layer_size:
-    for e in embedding_size:
-        # Train and validate model with hyperparameters h and e
-        pass
-```
-
-By carefully selecting a learning rate, applying learning rate decay, and properly splitting the dataset, we can train a robust model that generalizes well to unseen data. This approach helps in achieving a balance between underfitting and overfitting, leading to better performance on real-world tasks.
-
-<img src="./frames/unlabeled/frame_0329.png"/> # Training, Validation, and Test Split
-
-To avoid overfitting and ensure our model generalizes well, we split our data into training, validation (dev), and test sets. We train on the training set and evaluate on the test set sparingly.
-
-## Building the Dataset
-
-We start by reading all the words and converting them into tensors `X` and `Y`. Here's the code snippet for this process:
-
-```python
-# Read in all the words
-words = open('names.txt', 'r').read().splitlines()
-words[:8]
-
-# Build the vocabulary of characters and mappings to/from integers
-chars = sorted(list(set(''.join(words))))
-stoi = {s: i + 1 for i, s in enumerate(chars)} 
-stoi['.'] = 0
-itos = {i: s for s, i in stoi.items()}
-print(itos)
-
-# Build the dataset
-block_size = 3 # context length: how many characters do we take to predict the next one?
-X, Y = [], []
-for w in words:
-    context = [0] * block_size
-    for ch in w + '.':
-        ix = stoi[ch]
-        X.append(context)
-        Y.append(ix)
-        context = context[1:] + [ix]
-X = torch.tensor(X)
-Y = torch.tensor(Y)
-```
-
-<img src="./frames/unlabeled/frame_0336.png"/>
-
-## Shuffling and Splitting the Data
-
-Next, we shuffle the words and split them into training, validation, and test sets. We use 80% of the data for training, 10% for validation, and 10% for testing.
-
-```python
-import random
-random.seed(42)
-random.shuffle(words)
-n1 = int(0.8 * len(words))
-n2 = int(0.9 * len(words))
-
-Xtr, Ytr = build_dataset(words[:n1])
-Xdev, Ydev = build_dataset(words[n1:n2])
-Xte, Yte = build_dataset(words[n2:])
-```
-
-Here, `build_dataset` is a function that constructs the `X` and `Y` tensors for a given list of words.
-
-<img src="./frames/unlabeled/frame_0339.png"/>
-
-## Training the Neural Network
-
-We initialize our neural network and start training. Initially, we use a small network, but we later scale it up to improve performance.
-
-```python
-# Initialize parameters
-g = torch.Generator().manual_seed(2147483647)
-C = torch.randn((27, 2), generator=g)
-W1 = torch.randn((6, 100), generator=g)
-b1 = torch.randn(100, generator=g)
-W2 = torch.randn((100, 27), generator=g)
-b2 = torch.randn(27, generator=g)
-parameters = [C, W1, b1, W2, b2]
-
-# Training loop
-for i in range(10000):
-    # Minibatch construct
-    ix = torch.randint(0, Xtr.shape[0], (32,))
-    
     # Forward pass
-    emb = C[Xtr[ix]]
+    emb = C[X[ix]]
     h = torch.tanh(emb.view(-1, 6) @ W1 + b1)
     logits = h @ W2 + b2
-    loss = F.cross_entropy(logits, Ytr[ix])
+    loss = F.cross_entropy(logits, Y[ix])
     
     # Backward pass
     for p in parameters:
@@ -1438,130 +1056,204 @@ for i in range(10000):
     loss.backward()
     
     # Update
-    lr = 0.01
-    for p in parameters:
-        p.data += -lr * p.grad
-```
-
-<img src="./frames/unlabeled/frame_0342.png"/>
-
-## Evaluating the Model
-
-We evaluate the model on the validation set to ensure it generalizes well. The loss on the validation set is approximately 2.3, indicating that the model is not overfitting.
-
-```python
-# Evaluate on validation set
-emb = C[Xdev]
-h = torch.tanh(emb.view(-1, 6) @ W1 + b1)
-logits = h @ W2 + b2
-loss = F.cross_entropy(logits, Ydev)
-print(loss.item())
-```
-
-<img src="./frames/unlabeled/frame_0360.png"/>
-
-## Scaling Up the Neural Network
-
-To improve performance, we increase the size of the neural network by increasing the number of neurons in the hidden layer from 100 to 300.
-
-```python
-# Increase the size of the neural network
-W1 = torch.randn((6, 300), generator=g)
-b1 = torch.randn(300, generator=g)
-W2 = torch.randn((300, 27), generator=g)
-b2 = torch.randn(27, generator=g)
-parameters = [C, W1, b1, W2, b2]
-
-# Reinitialize training loop with new parameters
-for i in range(30000):
-    # Minibatch construct
-    ix = torch.randint(0, Xtr.shape[0], (32,))
-    
-    # Forward pass
-    emb = C[Xtr[ix]]
-    h = torch.tanh(emb.view(-1, 6) @ W1 + b1)
-    logits = h @ W2 + b2
-    loss = F.cross_entropy(logits, Ytr[ix])
-    
-    # Backward pass
-    for p in parameters:
-        p.grad = None
-    loss.backward()
-    
-    # Update
-    lr = 0.01
-    for p in parameters:
-        p.data += -lr * p.grad
-```
-
-<img src="./frames/unlabeled/frame_0366.png"/>
-
-By scaling up the neural network, we expect to see performance improvements as the model becomes more capable of capturing the underlying patterns in the data. ## Optimizing Neural Networks with PyTorch
-
-In this session, we are working on optimizing a neural network using PyTorch. We will track the steps and losses during the training process and make adjustments to improve the model's performance.
-
-### Tracking Steps and Loss
-
-First, we need to keep track of the steps and losses during the training process. We will train the model for 30,000 iterations with a learning rate of 0.1. The goal is to optimize the neural network and plot the steps against the loss to visualize the optimization process.
-
-```python
-lri = []
-lossi = []
-stepi = []
-
-for i in range(30000):
-    # minibatch construct
-    ix = torch.randint(0, Xtr.shape[0], (32,))
-    
-    # forward pass
-    emb = C[Xtr[ix]] # (32, 3, 2)
-    h = torch.tanh(emb.view(-1, 6) @ W1 + b1) # (32, 100)
-    logits = h @ W2 + b2 # (32, 27)
-    loss = F.cross_entropy(logits, Ytr[ix])
-    
-    # backward pass
-    for p in parameters:
-        p.grad = None
-    loss.backward()
-    
-    # update
-    lr = 0.1
     for p in parameters:
         p.data += -lr * p.grad
     
-    # track stats
-    lri.append(lre[i])
-    stepi.append(i)
+    # Track stats
+    lri.append(lr)
     lossi.append(loss.item())
 ```
 
-### Plotting the Loss
+<img src="./frames/unlabelled/frame_0307.png"/>
 
-We will plot the steps against the loss to see how the loss function is being optimized. The thickness in the plot is due to the noise created by the mini-batches.
+## Applying Learning Rate Decay
 
-```python
-plt.plot(stepi, lossi)
-```
-
-<img src="./frames/unlabeled/frame_0373.png"/>
-
-### Evaluating the Model
-
-After training, we evaluate the model on the development set. The current loss is around 2.5, indicating that the neural network has not been optimized very well. This could be due to the model's size or the batch size being too low, causing too much noise in the training process.
+As training progresses, it is common to apply learning rate decay. This means reducing the learning rate by a factor (e.g., 10) to allow the model to converge more smoothly.
 
 ```python
-emb = C[Xtr] # (32, 3, 2)
-h = torch.tanh(emb.view(-1, 6) @ W1 + b1) # (32, 100)
-logits = h @ W2 + b2 # (32, 27)
-loss = F.cross_entropy(logits, Ytr)
-loss
+lr = 0.01  # Decayed learning rate
+for i in range(10000):
+    # Forward pass
+    emb = C[X[ix]]
+    h = torch.tanh(emb.view(-1, 6) @ W1 + b1)
+    logits = h @ W2 + b2
+    loss = F.cross_entropy(logits, Y[ix])
+    
+    # Backward pass
+    for p in parameters:
+        p.grad = None
+    loss.backward()
+    
+    # Update
+    for p in parameters:
+        p.data += -lr * p.grad
+    
+    # Track stats
+    lri.append(lr)
+    lossi.append(loss.item())
 ```
 
-<img src="./frames/unlabeled/frame_0371.png"/>
+<img src="./frames/unlabelled/frame_0320.png"/>
 
-### Adjusting the Learning Rate
+By following these steps, we can effectively optimize the learning rate for our neural network, leading to better performance and faster convergence.
+# Understanding Overfitting and Data Splits in Neural Networks
 
-To improve the model's performance, we decrease the learning rate by a factor of two and continue training. We expect to see a lower loss than before because we have a much bigger model now.
+In this section, we discuss the concept of overfitting in neural networks and the importance of splitting your dataset into training, validation, and test sets.
+
+## Overfitting in Neural Networks
+
+As the capacity of a neural network grows, it becomes more capable of overfitting your training set. Overfitting occurs when the model performs exceptionally well on the training data but fails to generalize to new, unseen data. This means that the loss on the training set can become very low, potentially even zero, but the model is merely memorizing the training data rather than learning to generalize from it.
+
+When you evaluate the model on withheld data, such as a validation or test set, the loss can be significantly higher, indicating poor generalization. Therefore, it's crucial to split your dataset into different subsets to properly evaluate and tune your model.
+
+## Data Splits: Training, Validation, and Test Sets
+
+The standard practice in the field is to split your dataset into three parts:
+
+1. **Training Set**: Typically 80% of your data. This subset is used to optimize the parameters of the model using gradient descent.
+2. **Validation Set (Dev Set)**: Usually 10% of your data. This subset is used to tune the hyperparameters of the model, such as the size of the hidden layers, the size of the embeddings, and other settings.
+3. **Test Set**: The remaining 10% of your data. This subset is used to evaluate the performance of the model at the end. It's crucial to evaluate the test loss sparingly to avoid overfitting to the test set as well.
+
+<img src="./frames/unlabelled/frame_0323.png"/>
+
+## Implementing Data Splits in Code
+
+Here is an example of how to split your data into training, validation, and test sets in code:
+
+```python
+# Shuffle the words
+words = [...]  # List of words
+random.shuffle(words)
+
+# Define the split points
+N1 = int(0.8 * len(words))
+N2 = int(0.9 * len(words))
+
+# Create the splits
+train_words = words[:N1]
+dev_words = words[N1:N2]
+test_words = words[N2:]
+
+# Build datasets
+X_train, Y_train = build_dataset(train_words)
+X_dev, Y_dev = build_dataset(dev_words)
+X_test, Y_test = build_dataset(test_words)
+```
+
+In this code snippet, we shuffle the list of words and then split them into training, validation, and test sets based on the defined percentages.
+
+## Training and Evaluating the Model
+
+When training the model, we use only the training set. The validation set is used to tune hyperparameters, and the test set is used sparingly to evaluate the final performance of the model.
+
+```python
+# Training loop
+for epoch in range(num_epochs):
+    # Forward pass
+    logits = model(X_train)
+    loss = criterion(logits, Y_train)
+    
+    # Backward pass
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+    
+    # Evaluate on validation set
+    if epoch % eval_interval == 0:
+        val_logits = model(X_dev)
+        val_loss = criterion(val_logits, Y_dev)
+        print(f'Epoch {epoch}, Validation Loss: {val_loss.item()}')
+```
+
+In this training loop, we periodically evaluate the model on the validation set to monitor its performance and adjust hyperparameters as needed.
+
+<img src="./frames/unlabelled/frame_0337.png"/>
+
+By following these practices, you can ensure that your model generalizes well to new data and avoids overfitting.
+# Optimizing Neural Networks: Addressing Underfitting
+
+In this section, we will discuss how to address underfitting in neural networks by scaling up the size of the network. We will also look at the training and development (dev) loss to ensure that our model is not overfitting.
+
+## Evaluating Training and Dev Loss
+
+First, let's evaluate the loss on the entire training set. We observe that the training and dev loss are approximately equal, indicating that our model is not overfitting. This suggests that the model is not powerful enough to memorize the data, and we are currently underfitting.
+
+<img src="./frames/unlabelled/frame_0362.png"/>
+
+## Increasing the Neural Network Size
+
+To improve performance, we need to scale up the size of our neural network. The simplest way to do this is by increasing the number of neurons in the hidden layer. Currently, our hidden layer has 100 neurons. Let's increase this to 300 neurons.
+
+```python
+# Increase the size of the hidden layer
+h = torch.tanh(emb.view(-1, 6) @ W1 + b1) # (32, 100) -> (32, 300)
+logits = h @ W2 + b2 # (32, 300) -> (32, 27)
+```
+
+By doing this, we now have 10,000 parameters instead of the previous 3,000 parameters.
+
+## Tracking Training Progress
+
+To keep track of our training progress, we will monitor the loss and the number of steps. We will train the model on 30,000 steps with a learning rate of 0.1.
+
+```python
+# Initialize parameters
+lr = 0.1
+for i in range(30000):
+    # Minibatch training
+    ix = torch.randint(0, Xtr.shape[0], (32,))
+    emb = C[Xtr[ix]]
+    h = torch.tanh(emb.view(-1, 6) @ W1 + b1)
+    logits = h @ W2 + b2
+    loss = F.cross_entropy(logits, Ytr[ix])
+    
+    # Backward pass
+    for p in parameters:
+        p.grad = None
+    loss.backward()
+    
+    # Update parameters
+    for p in parameters:
+        p.data += -lr * p.grad
+    
+    # Track stats
+    if i % 100 == 0:
+        print(f'Step {i}, Loss: {loss.item()}')
+```
+
+## Visualizing the Loss Function
+
+We will plot the steps against the loss to visualize how the loss function is being optimized. The plot will show some noise due to the mini-batch training.
+
+```python
+import matplotlib.pyplot as plt
+
+# Plotting the loss function
+plt.plot(steps, losses)
+plt.xlabel('Steps')
+plt.ylabel('Loss')
+plt.title('Loss Function Optimization')
+plt.show()
+```
+
+## Current Status
+
+As of now, our dev set loss is at 2.5, indicating that we still haven't optimized the neural network very well. Further tuning and adjustments may be necessary to achieve better performance.
+
+By scaling up the neural network and carefully monitoring the training process, we can address underfitting and improve the model's performance.
+# Training a Neural Network: Addressing Convergence and Bottlenecks
+
+In this session, we are continuing the training of our neural network. One of the challenges we are facing is the slow convergence of the model. Let's dive into the details and explore some potential solutions.
+
+## Training Continuation and Batch Size Considerations
+
+It might take longer for this neural net to converge. One possibility is that the batch size is so low that we have way too much noise in the training. Increasing the batch size could help us achieve a more accurate gradient and optimize more effectively.
+
+<img src="./frames/unlabelled/frame_0376.png"/>
+
+## Learning Rate Adjustments
+
+We have re-initialized the parameters, and the current state of the model is not very pleasing. There might be a tiny improvement, but it's hard to tell. Let's try decreasing the learning rate by a factor of two.
 
 ```python
 lr = 0.05
@@ -1569,41 +1261,26 @@ for p in parameters:
     p.data += -lr * p.grad
 ```
 
-<img src="./frames/unlabeled/frame_0379.png"/>
+After adjusting the learning rate, we observe some progress. The loss has decreased to 2.32, but we need to continue training to see more significant improvements.
 
-### Addressing the Bottleneck
+<img src="./frames/unlabelled/frame_0378.png"/>
 
-One concern is that the embeddings are two-dimensional, which might be cramming too many characters into a small space. This could be the bottleneck of the network's performance. Increasing the dimensionality of the embeddings might help the neural network utilize the space more effectively.
+## Model Size and Embedding Bottleneck
+
+We expect to see a lower loss with a bigger model since we were underfitting before. However, even after increasing the hidden layer size, the loss is not decreasing as expected. One concern is that the bottleneck of the network might be the two-dimensional embeddings. We might be cramming too many characters into just two dimensions, limiting the neural net's ability to use that space effectively.
 
 ```python
-emb = C[Xtr] # (32, 3, 2)
-h = torch.tanh(emb.view(-1, 6) @ W1 + b1) # (32, 100)
-logits = h @ W2 + b2 # (32, 27)
-loss = F.cross_entropy(logits, Ytr)
-loss
+emb = C[Xtr]  # (32, 3, 2)
+h = torch.tanh(emb.view(-1, 6) @ W1 + b1)  # (32, 100)
+logits = h @ W2 + b2  # (32, 27)
+loss = F.cross_entropy(logits, Ytr[ix])
 ```
 
-<img src="./frames/unlabeled/frame_0385.png"/>
-
-By making these adjustments and continuing to train the model, we aim to achieve better optimization and lower loss, ultimately improving the neural network's performance. # Visualizing Character Embeddings in Neural Networks
-
-I was able to make quite a bit of progress. Let's run this one more time and then evaluate the training and the dev loss.
-
-## Evaluating Training and Dev Loss
-
-Now, one more thing after training that I'd like to do is visualize the embedding vectors for these characters before we scale up the embedding size from two. We want to make this bottleneck potentially go away. But once I make this greater than two, we won't be able to visualize them.
-
-Here, we see the training and dev loss values:
-
-<img src="./frames/unlabeled/frame_0388.png"/>
-
-We are at 2.23 and 2.24, so we're not improving much more. Maybe the bottleneck now is the character embedding size, which is two.
+By decreasing the learning rate, we made some progress, but the improvement is still limited. The current loss is around 2.23.
 
 ## Visualizing Embedding Vectors
 
-I have a bunch of code that will create a figure, and then we're going to visualize the embeddings that were trained by the neural net on these characters. Right now, the embedding size is just two, so we can visualize all the characters with the x and y coordinates as the two embedding locations for each of these characters.
-
-Here is the code snippet for visualizing the embeddings:
+Before scaling up the embedding size from two, we want to visualize the embedding vectors for these characters. This visualization will help us understand how the network is using the embedding space.
 
 ```python
 plt.figure(figsize=(8,8))
@@ -1613,337 +1290,187 @@ for i in range(C.shape[0]):
 plt.grid('minor')
 ```
 
-And here is the resulting plot:
+<img src="./frames/unlabelled/frame_0395.png"/>
 
-<img src="./frames/unlabeled/frame_0393.png"/>
+The network has learned to separate and cluster the characters. For example, the vowels A, E, I, O, and U are clustered together, indicating that the network is learning meaningful representations even with the limited embedding size.
 
-## Interpretation of the Embedding Plot
+In this session, we explored the impact of batch size, learning rate adjustments, and embedding size on the training of our neural network. Visualizing the embeddings provided insights into the network's learning process and highlighted the potential bottleneck caused by the limited embedding dimensions. Moving forward, increasing the embedding size could help alleviate this bottleneck and improve the model's performance.
+# Exploring Neural Network Embeddings and Optimization
 
-What we see is actually kind of interesting. The network has basically learned to separate out the characters and cluster them a little bit. For example, you see how the vowels, A, E, I, O, U, are clustered together. This tells us that the neural net treats these as very similar because when they feed into the neural net, the embedding for all these characters is very similar. The neural net thinks that they're very similar and kind of interchangeable, if that makes sense.
+In this session, we delve into the intricacies of neural network embeddings and optimization techniques. We will explore how embeddings are structured, how to scale them, and the impact of various hyperparameters on the model's performance.
 
-The points that are really far away are, for example, Q. Q is treated as an exception and has a very special embedding vector. Similarly, the dot character, which is a special character, is all the way out here. A lot of the other letters are clustered up here.
+## Understanding Embeddings
 
-It's interesting that there's a little bit of structure here after the training, and it's definitely not random. These embeddings make sense.
+The neural network treats certain characters as similar and interchangeable. For instance, the character 'Q' is an exception with a unique embedding vector, while other characters cluster together. This structure is evident after training, indicating that the embeddings are meaningful and not random.
 
-## Scaling Up the Embedding Size
+<img src="./frames/unlabelled/frame_0398.png"/>
 
-We are now going to scale up the embedding size, and we won't be able to visualize it directly anymore. This step is crucial to potentially remove the bottleneck and improve the model's performance further.
+## Scaling Up Embeddings
 
-By understanding and visualizing these embeddings, we gain insights into how the neural network perceives and processes different characters, which can be invaluable for further tuning and improving the model. # Optimizing Neural Network Embeddings and Hyperparameters
-
-In this session, we will explore how to optimize neural network embeddings and hyperparameters. We will start by increasing the dimensionality of our embeddings and adjusting the size of our hidden layer. Additionally, we will modify the learning rate and the number of iterations to observe their effects on the training and validation losses.
-
-## Increasing Embedding Dimensions
-
-First, let's increase the embedding dimensions from 2 to 10. This means each word will now have a 10-dimensional embedding. Consequently, the input to the hidden layer will be 30 (3 words * 10 dimensions).
+To improve performance, we scale up the embedding size. Initially, we used two-dimensional embeddings, but now we will use ten-dimensional embeddings for each word. This change means the hidden layer will receive 30 inputs (3 times 10). Additionally, we reduce the hidden layer size from 300 to 200 neurons, resulting in a total of 11,000 elements.
 
 ```python
-C = torch.randn((27, 10), generator=g)
-W1 = torch.randn((30, 100), generator=g)
-b1 = torch.randn(300, generator=g)
-W2 = torch.randn((300, 27), generator=g)
-b2 = torch.randn(27, generator=g)
-parameters = [C, W1, b1, W2, b2]
+emb = C[Xtr] # (32, 3, 2)
+h = torch.tanh(emb.view(-1, 30) @ W1 + b1) # (32, 100)
+logits = h @ W2 + b2 # (32, 27)
+loss = F.cross_entropy(logits, Ytr)
 ```
 
-## Adjusting the Hidden Layer Size
+We also adjust the learning rate and iteration count. Instead of hardcoding values, we use more flexible parameters.
 
-We will also reduce the size of the hidden layer from 300 to 200 neurons. This change will slightly increase the total number of parameters to around 11,000.
+## Logging and Plotting Loss
+
+To better visualize the loss, we log the loss values using `log10`. This approach prevents the "hockey stick" appearance in plots and provides a clearer view of the loss progression.
 
 ```python
-W1 = torch.randn((30, 200), generator=g)
-b1 = torch.randn(200, generator=g)
-W2 = torch.randn((200, 27), generator=g)
-b2 = torch.randn(27, generator=g)
-parameters = [C, W1, b1, W2, b2]
+# Logging loss
+lossi.append(loss.log10().item())
 ```
 
-## Modifying the Learning Rate and Iterations
+<img src="./frames/unlabelled/frame_0420.png"/>
 
-We will set the learning rate to 0.1 and run the training for 50,000 iterations. Additionally, we will log the loss using a logarithmic scale to better visualize the training progress.
+## Training and Validation Performance
+
+After adjusting the learning rate and running for 50,000 iterations, we observe the training and validation performance. The training set loss is 2.3, and the validation set loss is 2.38. We then decrease the learning rate by a factor of 10 and train for another 50,000 iterations.
 
 ```python
-lr = 0.1
-for i in range(50000):
-    # Minibatch construct
+# Adjusting learning rate
+lr = 0.1 if i < 100000 else 0.01
+```
+
+<img src="./frames/unlabelled/frame_0425.png"/>
+
+## Hyperparameter Tuning
+
+We continue tuning the optimization and experimenting with different hyperparameters. For instance, we can change the number of neurons in the hidden layer, the dimensionality of the embedding lookup table, and the number of input characters.
+
+```python
+# Hyperparameter tuning
+for i in range(200000):
+    lr = 0.1 if i < 100000 else 0.01
+    # Training loop
+```
+
+<img src="./frames/unlabelled/frame_0432.png"/>
+
+Through various experiments and optimizations, we achieve a validation loss of 2.17. There are multiple ways to further improve the model, such as adjusting the neural network size or increasing the number of input characters. I invite you to experiment with these parameters and surpass this performance.
+# Training and Sampling from a Neural Network Model
+
+## Training the Model
+
+In this section, we discuss the training process of a neural network model. The code snippet below shows the training loop, where we iterate over a range of 200,000 steps. During each step, we construct a mini-batch, perform a forward pass, compute the loss, and then perform a backward pass to update the parameters.
+
+<img src="./frames/unlabelled/frame_0436.png"/>
+
+```python
+for i in range(200000):
+    # minibatch construct
     ix = torch.randint(0, Xtr.shape[0], (32,))
     
-    # Forward pass
+    # forward pass
     emb = C[Xtr[ix]]
-    h = torch.tanh(emb.view(-1, 30) @ W1 + b1)
-    logits = h @ W2 + b2
+    h = torch.tanh(emb.view(-1, 30) @ W1 + b1)  # (32, 100)
+    logits = h @ W2 + b2  # (32, 27)
     loss = F.cross_entropy(logits, Ytr[ix])
     
-    # Backward pass
+    # backward pass
     for p in parameters:
         p.grad = None
     loss.backward()
     
-    # Update
+    # update
+    lr = 0.1 if i < 100000 else 0.01
     for p in parameters:
         p.data += -lr * p.grad
     
-    # Track stats
+    # track stats
+    lr1.append(lr)
     stepi.append(i)
     lossi.append(loss.log10().item())
 ```
 
-<img src="./frames/unlabeled/frame_0402.png"/>
+The learning rate is initially set to 0.1 and then decays to 0.01 after 100,000 steps. This helps in achieving better convergence speed and a good loss value.
 
-## Plotting the Log Loss
+## Plotting the Loss
 
-Plotting the log loss helps in visualizing the training progress more clearly, as it squashes the loss values and avoids the hockey stick appearance.
+After training, we plot the loss to visualize the training progress. The plot shows how the loss decreases over time, indicating that the model is learning.
+
+<img src="./frames/unlabelled/frame_0438.png"/>
 
 ```python
 plt.plot(stepi, lossi)
 ```
 
-<img src="./frames/unlabeled/frame_0414.png"/>
+## Evaluating the Model
 
-## Observing Training and Validation Losses
-
-After running the training for 50,000 iterations, we observe the training and validation losses. The training loss is around 2.17, and the validation loss is around 2.2. This indicates that the model is starting to overfit slightly.
+We evaluate the model on both the training and validation sets to check its performance. The loss values for both sets are printed below.
 
 ```python
 emb = C[Xtr]
-h = torch.tanh(emb.view(-1, 30) @ W1 + b1)
-logits = h @ W2 + b2
+h = torch.tanh(emb.view(-1, 30) @ W1 + b1)  # (32, 100)
+logits = h @ W2 + b2  # (32, 27)
 loss = F.cross_entropy(logits, Ytr)
-print(loss.item())  # Training loss
+print(loss)  # tensor(2.1260, grad_fn=<NLLLossBackward0>)
 
 emb = C[Xdev]
-h = torch.tanh(emb.view(-1, 30) @ W1 + b1)
-logits = h @ W2 + b2
+h = torch.tanh(emb.view(-1, 30) @ W1 + b1)  # (32, 100)
+logits = h @ W2 + b2  # (32, 27)
 loss = F.cross_entropy(logits, Ydev)
-print(loss.item())  # Validation loss
+print(loss)  # tensor(2.1701, grad_fn=<NLLLossBackward0>)
 ```
 
-<img src="./frames/unlabeled/frame_0408.png"/>
+## Sampling from the Model
 
-## Further Optimization
+To sample from the model, we generate 20 samples. We start with a context of all dots and embed the current context using the embedding table `C`. This embedding is then projected into the hidden state to get the logits. We calculate the probabilities using `F.softmax` and sample from them using `torch.multinomial`. The context window is then shifted to append the new index, and we decode the integers to strings to print them out.
 
-To further optimize the model, we can decrease the learning rate by a factor of 10 and train for another 50,000 iterations. This should help in reducing the loss further.
-
-```python
-lr = 0.01
-for i in range(50000, 100000):
-    # Minibatch construct
-    ix = torch.randint(0, Xtr.shape[0], (32,))
-    
-    # Forward pass
-    emb = C[Xtr[ix]]
-    h = torch.tanh(emb.view(-1, 30) @ W1 + b1)
-    logits = h @ W2 + b2
-    loss = F.cross_entropy(logits, Ytr[ix])
-    
-    # Backward pass
-    for p in parameters:
-        p.grad = None
-    loss.backward()
-    
-    # Update
-    for p in parameters:
-        p.data += -lr * p.grad
-    
-    # Track stats
-    stepi.append(i)
-    lossi.append(loss.log10().item())
-```
-
-## Final Results
-
-After running the training for a total of 100,000 iterations, we achieve a training loss of 2.16 and a validation loss of 2.19. This indicates that the embedding size was likely holding us back initially.
+<img src="./frames/unlabelled/frame_0441.png"/>
 
 ```python
-emb = C[Xtr]
-h = torch.tanh(emb.view(-1, 30) @ W1 + b1)
-logits = h @ W2 + b2
-loss = F.cross_entropy(logits, Ytr)
-print(loss.item())  # Training loss
-
-emb = C[Xdev]
-h = torch.tanh(emb.view(-1, 30) @ W1 + b1)
-logits = h @ W2 + b2
-loss = F.cross_entropy(logits, Ydev)
-print(loss.item())  # Validation loss
-```
-
-<img src="./frames/unlabeled/frame_0426.png"/>
-
-There are many ways to further optimize the model, such as tuning the optimization parameters, adjusting the size of the neural network, or increasing the number of input characters. By running multiple experiments and scrutinizing the results, we can find the best hyperparameters that yield the best validation performance. Once the optimal hyperparameters are found, we can evaluate the test set performance and report the results.
-
-I invite you to beat the validation loss of 2.17. You have quite a few knobs available to you to surpass this number. Happy optimizing! # Exploring Model Hyperparameters and Optimization Techniques
-
-In this section, we will discuss various aspects of tuning a neural network model, including changing the number of neurons, adjusting the dimensionality of the embedding lookup table, and modifying the context input size. Additionally, we will explore optimization details such as learning rate schedules, batch sizes, and their impact on convergence speed and model performance.
-
-## Adjusting Model Hyperparameters
-
-### Number of Neurons in the Hidden Layer
-
-One of the primary hyperparameters you can adjust is the number of neurons in the hidden layer. This change can significantly impact the model's capacity to learn and generalize from the data.
-
-### Dimensionality of the Embedding Lookup Table
-
-Another crucial hyperparameter is the dimensionality of the embedding lookup table. This parameter determines the size of the vector space in which the input characters are embedded. Adjusting this dimensionality can affect the model's ability to capture and represent the input data effectively.
-
-### Context Input Size
-
-You can also change the number of characters fed into the model as context. This parameter influences how much historical information the model considers when making predictions.
-
-## Optimization Techniques
-
-### Learning Rate and Schedule
-
-The learning rate is a critical factor in training neural networks. You can experiment with different learning rates and schedules to see how they affect the model's convergence. For instance, you might use a learning rate that decays over time to fine-tune the model's performance.
-
-### Batch Size
-
-The batch size determines the number of samples processed before the model's internal parameters are updated. Adjusting the batch size can lead to faster convergence and better model performance.
-
-### Training Duration
-
-The duration of the training process is another variable you can control. Running the training for a longer period can lead to better results, but it also requires more computational resources.
-
-## Practical Example
-
-Below is an example of a training loop with various hyperparameters and optimization techniques applied:
-
-<img src="./frames/unlabeled/frame_0434.png"/>
-
-```python
-for i in range(200000):
-    # Minibatch construct
-    ix = torch.randint(0, Xtr.shape[0], (32,))
-    
-    # Forward pass
-    emb = C[Xtr[ix]]  # (32, 3, 2)
-    h = torch.tanh(emb.view(-1, 30) @ W1 + b1)  # (32, 100)
-    logits = h @ W2 + b2  # (32, 27)
-    loss = F.cross_entropy(logits, Ytr[ix])
-    
-    # Backward pass
-    for p in parameters:
-        p.grad = None
-    loss.backward()
-    
-    # Update
-    lr = lrs[i]
-    lr = 0.1 if i < 100000 else 0.01
-    for p in parameters:
-        p.data += -lr * p.grad
-    
-    # Track stats
-    lri.append(lre[i])
-    stepi.append(i)
-    lossi.append(loss.log10().item())
-```
-
-## Visualizing Training Progress
-
-The plot below shows the training loss over time, indicating how the model's performance improves with each iteration.
-
-<img src="./frames/unlabeled/frame_0433.png"/>
-
-## Recommended Reading
-
-For a deeper understanding of these concepts, I recommend reading the paper by Bengio, Ducharme, Vincent, and Jauvin. Although it is 19 pages long, you should now be able to comprehend a significant portion of it.
-
-<img src="./frames/unlabeled/frame_0435.png"/>
-
-By experimenting with these hyperparameters and optimization techniques, you can achieve better convergence speeds and improved model performance. # Sampling from the Model
-
-Before we wrap up, I wanted to show how you would sample from the model. We're going to generate 20 samples.
-
-## Initial Context
-
-At first, we begin with all dots, so that's the context. Until we generate the zero character again, we're going to embed the current context using the embedding table `C`.
-
-<img src="./frames/unlabeled/frame_0439.png"/>
-
-## Embedding and Hidden State
-
-Usually, the first dimension is the size of the training set, but here we're only working with a single example that we're generating. So, this is just dimension one, for simplicity. This embedding then gets projected into the hidden state, and we get the logits.
-
-## Calculating Probabilities
-
-Next, we calculate the probabilities. For that, you can use the `F.softmax` of logits, which exponentiates the logits and makes them sum to one. Similar to cross-entropy, it ensures there are no overflows.
-
-## Sampling and Context Shifting
-
-Once we have the probabilities, we sample from them using `torch.multinomial` to get our next index. Then, we shift the context window to append the index and record it.
-
-<img src="./frames/unlabeled/frame_0440.png"/>
-
-## Decoding and Output
-
-Finally, we decode all the integers to strings and print them out. Here are some example samples, and you can see that the model now works much better.
-
-<img src="./frames/unlabeled/frame_0441.png"/> # Improving Name Generation with Neural Networks
-
-The words generated by our model are starting to resemble actual names. For instance, we have outputs like "hem," "jose," and "lila." These are more name-like compared to earlier iterations, indicating that we are making progress. However, there is still room for improvement in our model.
-
-<img src="./frames/unlabeled/frame_0447.png"/>
-
-## Making Notebooks More Accessible
-
-I want to make these notebooks more accessible. Instead of requiring you to install Jupyter notebooks, Torch, and other dependencies, I will be sharing a link to a Google Colab.
-
-Google Colab allows you to run notebooks directly in your browser. You can execute all the code without any installation. This is the same code I used in this lecture, albeit slightly shortened. You will be able to train the exact same network, plot results, and sample from the model. Everything is set up for you to experiment with the parameters right in your browser.
-
-<img src="./frames/unlabeled/frame_0449.png"/>
-
-The link to the Google Colab will be provided in the video description. This should make it easier for you to follow along and experiment with the code.
-
-## Example Code and Results
-
-Here is an example of the code used to generate names:
-
-```python
-# sample from the model
 g = torch.Generator().manual_seed(2147483647 + 10)
 
-for _ in range(20):
-    out = []
-    context = [0] * block_size  # initialize with all ...
-    while True:
-        emb = C[torch.tensor([context])]  # (1, block_size, d)
-        h = torch.tanh(emb.view(1, -1) @ W1 + b1)
-        logits = h @ W2 + b2
-        probs = F.softmax(logits, dim=1)
-        ix = torch.multinomial(probs, num_samples=1, generator=g).item()
-        context = context[1:] + [ix]
-        out.append(ix)
-        if ix == 0:
-            break
+out = []
+context = [0] * block_size  # initialize with all dots
+while True:
+    emb = C[torch.tensor([context])]  # (1, block_size, d)
+    h = torch.tanh(emb.view(1, -1) @ W1 + b1)
+    logits = h @ W2 + b2
+    probs = F.softmax(logits, dim=1)
+    ix = torch.multinomial(probs, num_samples=1, generator=g).item()
+    context = context[1:] + [ix]
+    out.append(ix)
+    if ix == 0:
+        break
 
-    print(''.join(itos[i] for i in out))
+print(''.join(itos[i] for i in out))
 ```
 
-The generated names include:
+The generated samples are more word-like or name-like, indicating that the model is improving.
 
-- carmahela
-- jhovi
-- kimrin
-- thil
-- halanna
-- jzhein
-- amerynci
-- aqui
-- nelara
-- chaliiv
-- kaleigh
-- ham
-- joce
-- quinton
-- tilea
-- jamilio
-- jeron
-- jaryni
-- jace
-- chrudeley
+## Making the Notebooks Accessible
 
-These names show that the model is learning patterns that are more name-like, but there is still potential for further refinement.
+To make these notebooks more accessible, a Google Colab link will be shared. This allows you to execute all the code in your browser without needing to install Jupyter notebooks or Torch. The Google Colab notebook will look like the one shown below, and you can train the network, plot, and sample from the model directly in your browser.
 
-<img src="./frames/unlabeled/frame_0450.png"/>
+<img src="./frames/unlabelled/frame_0452.png"/>
 
-By using Google Colab, you can easily run this code and see the results for yourself. This setup is designed to be user-friendly and requires no local installations, making it accessible to everyone.
+```python
+import torch
+import torch.nn.functional as F
+import matplotlib.pyplot as plt
+
+# Download the names.txt file from GitHub
+!wget https://raw.githubusercontent.com/karpathy/makemore/master/names.txt
+
+# Read the names from the file
+words = open('names.txt', 'r').read().splitlines()
+print(words[:8])  # ['emma', 'olivia', 'ava', 'isabella', 'sophia', 'charlotte', 'mia', 'amelia']
+print(len(words))  # 32033
+
+# Build the vocabulary of characters and mappings to/from integers
+chars = sorted(list(set(''.join(words))))
+stoi = {s: i+1 for i, s in enumerate(chars)}
+stoi['.'] = 0
+itos = {i: s for s, i in stoi.items()}
+print(itos)  # {0: '.', 1: 'a', 2: 'b', 3: 'c', 4: 'd', 5: 'e', 6: 'f', 7: 'g', 8: 'h', 9: 'i', 10: 'j', 11: 'k', 12: 'l', 13: 'm', 14: 'n', 15: 'o', 16: 'p', 17: 'q', 18: 'r', 19: 's', 20: 't', 21: 'u', 22: 'v', 23: 'w', 24: 'x', 25: 'y', 26: 'z'}
+```
+
+By using Google Colab, you can easily tinker with the numbers and experiment with the model without any installation hassle.
