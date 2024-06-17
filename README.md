@@ -28,6 +28,8 @@
 
 Using the vision capabilities of `GPT-4o`, you can now turn any video tutorial into technical article with relevant code snippets, screenshots extracted from the video without manual intervention.
 
+For specifics in the implementation, you can read more in my detailed [write-up]().
+
 > [!NOTE]
 >
 > While Video2Article works well to a certain extent, it still requires manual proofreading and editing to fix inaccuracies and inconsistencies in the content and formatting.
@@ -58,9 +60,12 @@ brew install uv
 pacman -S uv
 ```
 
-To install the required dependencies:
+To setup the project and install the required dependencies:
 
 ```shell
+# git clone the repo along with submodules
+git clone --recurse-submodules https://github.com/wtlow003/video2article.git
+
 # create a virtual env
 uv venv
 

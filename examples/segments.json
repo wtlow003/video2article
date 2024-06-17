@@ -1,0 +1,107 @@
+[
+  {
+    "start": "00:00:00,000",
+    "end": "00:01:07,520",
+    "header": "Introduction and Review of Previous Lecture"
+  },
+  {
+    "start": "00:01:07,520",
+    "end": "00:02:25,720",
+    "header": "Challenges with Bigram Model and Introduction to Multilayer Perceptron Model"
+  },
+  {
+    "start": "00:02:25,720",
+    "end": "00:06:05,360",
+    "header": "Overview and High-Level Description of the Bengio et al. Paper (2003)"
+  },
+  {
+    "start": "00:06:05,360",
+    "end": "00:06:05,680",
+    "header": "Multilayer Perceptron Model Implementation Steps"
+  },
+  {
+    "start": "00:06:05,680",
+    "end": "00:08:03,040",
+    "header": "Description of Word Embeddings and Input Layer"
+  },
+  {
+    "start": "00:08:03,040",
+    "end": "00:09:01,360",
+    "header": "Architecture of Hidden Layer and Output Layer of the Neural Network"
+  },
+  {
+    "start": "00:09:01,360",
+    "end": "00:15:01,980",
+    "header": "Implementation of the Initial Layers and Building the Dataset"
+  },
+  {
+    "start": "00:15:01,980",
+    "end": "00:18:22,940",
+    "header": "Forward Pass of the Neural Network"
+  },
+  {
+    "start": "00:18:22,940",
+    "end": "00:20:50,500",
+    "header": "Implementing the Hidden Layer and Matrix Manipulations"
+  },
+  {
+    "start": "00:20:50,500",
+    "end": "00:28:03,040",
+    "header": "Efficiency with Tensor Views in PyTorch"
+  },
+  {
+    "start": "00:28:03,040",
+    "end": "00:30:09,420",
+    "header": "Output Layer and Softmax Functionality"
+  },
+  {
+    "start": "00:30:09,420",
+    "end": "00:32:05,740",
+    "header": "Calculating Loss and Cross-Entropy"
+  },
+  {
+    "start": "00:32:05,740",
+    "end": "00:33:05,980",
+    "header": "Backward Pass and Optimization"
+  },
+  {
+    "start": "00:33:05,980",
+    "end": "00:35:00,000",
+    "header": "Optimizing with Mini-Batches"
+  },
+  {
+    "start": "00:35:00,000",
+    "end": "00:41:04,400",
+    "header": "Implementing Larger Number of Iterations and Evaluating Loss"
+  },
+  {
+    "start": "00:41:04,400",
+    "end": "01:00:07,290",
+    "header": "Determining the Learning Rate"
+  },
+  {
+    "start": "01:00:07,290",
+    "end": "01:07:05,670",
+    "header": "Early Termination and Visualization of Embedding Layer"
+  },
+  {
+    "start": "01:07:05,670",
+    "end": "01:10:55,670",
+    "header": "Model Improvement with Additional Context and Other Hyperparameter Tuning"
+  },
+  {
+    "start": "01:10:55,670",
+    "end": "01:13:16,670",
+    "header": "Summary and Encouragement to Experiment Further"
+  },
+  {
+    "start": "01:13:16,670",
+    "end": "01:14:18,670",
+    "header": "Generating Samples and Improved Model Performance"
+  },
+  {
+    "start": "01:14:18,670",
+    "end": "01:15:05,670",
+    "header": "Announcement on Google Colab Support to Run Notebooks"
+  }
+]
