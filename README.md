@@ -28,6 +28,10 @@
 
 Using the vision capabilities of `GPT-4o`, you can now turn any video tutorial into technical article with relevant code snippets, screenshots extracted from the video without manual intervention.
 
+The following illustrates the high-level overview on **Video2Article**'s inner workings:
+
+![architecture-diagram](/assets/high-level-architecture.png)
+
 For specifics in the implementation, you can read more in my detailed [write-up](https://wtlow003.github.io/posts/transforming-video-to-article-with-gpt-4o/).
 
 > [!NOTE]
