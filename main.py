@@ -41,10 +41,9 @@ def main(
     url: str,
     transcript_path: str,
     segments_path: Optional[str],
-    api_key: str,
     semantic_chunking: bool,
 ):
-    client = OpenAI(api_key=api_key)
+    client = OpenAI()
 
     logger.info("Running processing to download and extract pre-requisities")
     # pre-requisites, skip if resuming workflow (assume resuming means pre-requisites available)
@@ -121,7 +120,6 @@ if __name__ == "__main__":
     main(
         transcript_path=args.transcript_path,
         segments_path=args.segments_path,
-        api_key=args.api_key,
         url=args.url,
         semantic_chunking=args.semantic_chunking,
     )

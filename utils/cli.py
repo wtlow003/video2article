@@ -4,7 +4,6 @@ import argparse
 def cli_parser():
     """CLI Arguments Parser for Video2Article"""
     parser = argparse.ArgumentParser(description="Convert video to article.")
-    parser.add_argument("--api-key", type=str, help="OpenAI API key.")
     parser.add_argument(
         "--transcript-path",
         type=str,
