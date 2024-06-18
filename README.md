@@ -88,7 +88,6 @@ Convert video to article.
 
 optional arguments:
   -h, --help            show this help message and exit
-  --api-key API_KEY     OpenAI API key.
   --transcript-path TRANSCRIPT_PATH
                         [OPTIONAL] Path to video transcript (in SRT) format.
   --segments-path SEGMENTS_PATH
