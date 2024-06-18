@@ -1,5 +1,6 @@
 from typing import List
 
+from langsmith import traceable
 from openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_random
 
@@ -80,6 +81,7 @@ def generate_transcript_segments(client: OpenAI, transcript: str) -> str:
     return content
 
 
+@traceable(run_type="llm", project_name="video2article")
 @retry(stop=stop_after_attempt(3), wait=wait_random(min=1, max=2))
 def generate_md_section(client: OpenAI, transcript: str, b64_imgs: List[str]) -> str:
     """Chat completion call to generate markdown content.

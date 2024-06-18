@@ -100,7 +100,8 @@ optional arguments:
 For example, to trigger a straightforward article generation from a YouTube url:
 
 ```shell
-python3 main.py --url "https://www.youtube.com/watch?v=TCH_1BHY58I" \
-    --api-key sk-xxx \
-    --semantic-chunking 
+# api keys for openai + langsmith tracing
+source .env
+
+python3 main.py --url "https://www.youtube.com/watch?v=TCH_1BHY58I" --semantic-chunking 
 ```
