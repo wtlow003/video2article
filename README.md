@@ -32,7 +32,7 @@ The following illustrates the high-level overview on **Video2Article**'s inner w
 
 ![architecture-diagram](/assets/high-level-architecture.png)
 
-For specifics in the implementation, you can read more in my detailed [write-up](https://wtlow003.github.io/posts/transforming-video-to-article-with-gpt-4o/).
+For specifics in the implementation, you can read more in my detailed [write-up](https://www.jensenlwt.com/blog/transforming-video-to-article-with-gpt-4o).
 
 > [!NOTE]
 >
